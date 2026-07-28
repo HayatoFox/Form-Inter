@@ -6,4 +6,15 @@ __pycache__
 data
 logs
 README.md
+PROJET.md
 docker-compose.yml
+# Le front est construit hors image : seul son build (webapp/static/app,
+# commité) est copié. Ni Node ni npm ne sont nécessaires pour bâtir l'image.
+frontend/node_modules
+frontend/src
+frontend/public
+frontend/index.html
+frontend/package.json
+frontend/package-lock.json
+frontend/tsconfig.json
+frontend/vite.config.ts

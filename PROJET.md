@@ -49,18 +49,38 @@ durée, tarif, remarques, disponibilité, lien vers la fiche programme.
 └───────────────┘                                      │ sessions_effectives)
                                               ┌─────────▼────────────┐
                                               │ webapp/  (port 8000) │
-                                              │  site + back office  │
+                                              │  API JSON  /api/*    │
+                                              │  + fichiers du front │
+                                              └─────────┬────────────┘
+                                                        │ fetch (cookie + CSRF)
+                                              ┌─────────▼────────────┐
+                                              │ frontend/  (React)   │
+                                              │  build → webapp/     │
+                                              │  static/app/ (commité)│
                                               └──────────────────────┘
 ```
 
-**Philosophie : 100 % stdlib Python** (urllib, re, json, sqlite3, http.server,
-hashlib, fcntl…). Pas de pip, pas de framework, pas de build front, pas de
-JavaScript. Origine de la contrainte : la machine de dev n'a ni pip ni venv ;
-c'est devenu un choix assumé (déploiement trivial, zéro dette de dépendances).
-Si un futur site impose un vrai besoin (ex. rendu JS → playwright), la voie
-validée est : paquet apt dans l'image Docker + wheel PyPI décompressé dans
-`vendor/` pour le dev local (mécanique déjà éprouvée avec PyMuPDF, retirée
-depuis).
+**Côté serveur : 100 % stdlib Python** (urllib, re, json, sqlite3, http.server,
+hashlib, fcntl…). Pas de pip, pas de framework. Origine de la contrainte : la
+machine de dev n'a ni pip ni venv ; c'est resté un choix assumé (déploiement
+trivial, zéro dette de dépendances côté exécution). Si un futur site impose un
+vrai besoin (ex. rendu JS → playwright), la voie validée est : paquet apt dans
+l'image Docker + wheel PyPI décompressé dans `vendor/` pour le dev local
+(mécanique déjà éprouvée avec PyMuPDF, retirée depuis).
+
+**Côté interface : React + TypeScript + Vite + Tailwind** (`frontend/`). Le
+rendu HTML serveur d'origine (fonctions Python + `string.Template`) a été
+remplacé le 28/07/2026 : l'outil était fonctionnel mais trop brut pour un usage
+quotidien. Deux garde-fous ont été posés pour ne pas alourdir l'exploitation :
+
+- **Le build est commité** dans `webapp/static/app/`. Le serveur Python sert ce
+  dossier tel quel : `python3 -m webapp` et `docker compose up --build`
+  fonctionnent sans Node ni accès au registre npm, comme avant. Node n'est
+  requis que pour *modifier* le front.
+- **Contrepartie à connaître** : un build oublié laisse l'interface en retard
+  sur le code. Après toute modification de `frontend/`, lancer
+  `npm --prefix frontend run build` et commiter le résultat. Le `Dockerfile`
+  échoue explicitement si `webapp/static/app/index.html` manque.
 
 ## 4. La collecte (`scraper/`)
 
@@ -116,6 +136,18 @@ dates incohérentes (fin < début = coquille du site source → session ramenée
 Schéma dans `scraper/db.py` (source unique, migrations par `ALTER TABLE`
 à la connexion, PRAGMA `journal_mode=WAL` + `busy_timeout=15000`).
 
+**Index à ne pas perdre** : `idx_sessions_organisme_last_seen`
+`(organisme, last_seen)`. Toutes les lectures filtrent sur « l'offre courante »
+(`last_seen = MAX(last_seen)` de l'organisme) ; sans cet index ce MAX corrélé
+rebalayait la table pour chaque ligne — les statistiques mettaient ~1,8 s,
+contre ~0,02 s avec (mesuré sur 2 000 sessions, l'écart croît avec le volume).
+
+**Vues SQL** : `_synchroniser_vues()` ne recrée une vue que si sa définition a
+changé. Le DROP + CREATE systématique à chaque connexion faisait courir deux
+threads de la webapp l'un contre l'autre (« view already exists ») dès que le
+navigateur lançait plusieurs requêtes de front, et prenait un verrou d'écriture
+en concurrence avec les ~10 minutes d'écriture du scraper.
+
 - **`sessions`** — une ligne par session. Clé naturelle d'upsert :
   `(organisme, formation, ville, date_debut, date_fin)` avec comparaison
   NULL-safe (`IS`). `date_debut/date_fin` NULL = entrée/sortie permanente.
@@ -135,28 +167,31 @@ Schéma dans `scraper/db.py` (source unique, migrations par `ALTER TABLE`
   cron/manuel). Alimente la page Santé.
 - **`utilisateurs`** — comptes du site (identifiant unique NOCASE, hash
   scrypt `scrypt$salt$hash`, rôle admin, actif).
+- **`vues`** — combinaisons de filtres mémorisées par un utilisateur, stockées
+  sous forme de query string (`f=1&domaine=…`). `partagee = 1` les propose à
+  toute l'équipe ; seul l'auteur peut supprimer les siennes.
 
 La base est régénérable : `rm data/formations.db` + un scrape la reconstruit
 (mais perd l'historique first/last_seen, les runs… et les utilisateurs +
 overrides — **sauvegarder avant**, cf. `data/backups/`).
 
-## 6. Le site web (`webapp/`)
+## 6. Le serveur web (`webapp/`)
 
-Serveur `ThreadingHTTPServer` + routeur regex maison (`app.py`), une
-connexion SQLite par requête, HTML rendu par fonctions Python +
-`string.Template` (`rendu.py`), CSS artisanal aux couleurs PROINSEC
-(`static/style.css` : bleu `#0072b1`, accent orange `#ff6900`).
+Serveur `ThreadingHTTPServer` + routeur regex maison (`app.py`), une connexion
+SQLite par requête. Deux familles de routes : `/api/*` (JSON, `api.py`) et tout
+le reste (fichiers du build, `statiques.py`, avec repli sur `index.html` pour
+que `/admin/stats` réponde 200 au rechargement).
 
-- **Tout est sous connexion** (sauf /connexion et /static). Rôle admin pour
-  /admin/*. Premier compte créé au démarrage si la table est vide
-  (`WEBAPP_ADMIN_USER`/`WEBAPP_ADMIN_PASSWORD`, mot de passe généré et
-  affiché en console sinon). **SSO prévu à terme : tout est dans
-  `webapp/auth.py`**, rien à toucher ailleurs.
-- **Exigence structurante : pas de filtres dynamiques.** Un formulaire GET,
-  un bouton « Filtrer », une requête par action. `filtres.py` centralise la
-  validation, le WHERE paramétré, la whitelist de tri et la génération
-  d'URLs (`url_liste()` — pagination, tris, exports et retours admin passent
-  tous par lui).
+- **Tout est sous connexion** (sauf `/api/moi`, `/api/connexion` et les
+  fichiers statiques). Rôle admin pour `/api/admin/*`. Premier compte créé au
+  démarrage si la table est vide (`WEBAPP_ADMIN_USER`/`WEBAPP_ADMIN_PASSWORD`,
+  mot de passe généré et affiché en console sinon). **SSO prévu à terme : tout
+  est dans `webapp/auth.py`**, rien à toucher ailleurs.
+- `filtres.py` reste la source unique de vérité des filtres : validation,
+  WHERE paramétré, whitelist de tri, sérialisation en query string. Les filtres
+  de l'interface transitent sous cette forme (`?f=1&domaine=…`), donc **une
+  vue enregistrée repasse par le même parser qu'un paramètre d'URL** — rien
+  d'issu du client n'entre en SQL.
 - Défauts d'affichage : offre courante, sessions à venir + permanentes, non
   masquées, tri par date. Exports CSV (`;`, utf-8-sig, anti-injection de
   formule) et XLSX (générateur OOXML stdlib maison, `exports.py`) sur le
@@ -165,15 +200,39 @@ connexion SQLite par requête, HTML rendu par fonctions Python +
   partagé avec `run_scraper.sh` (le cron s'efface si le manuel tourne et
   inversement). L'état local du processus est suivi par variable module
   (`_debut_local`) — ne pas re-sonder flock depuis le processus détenteur.
-- Sécurité : SQL paramétré partout, `e()` (html.escape) systématique, liens
-  externes seulement si http(s), CSRF HMAC sur tous les POST, cookies signés
-  HMAC (secret persisté dans `data/.secret`, chmod 600), redirections
-  relatives validées, mots de passe jamais dans les URLs.
+- Sécurité : SQL paramétré partout, liens externes seulement si http(s),
+  cookies signés HMAC `HttpOnly`+`SameSite=Lax` (secret persisté dans
+  `data/.secret`, chmod 600), **jeton CSRF exigé sur POST/PUT/DELETE via
+  l'en-tête `X-CSRF-Token`**, CSP stricte (`script-src 'self'` + empreinte
+  sha256 du seul script inline, calculée au démarrage depuis `index.html`),
+  mots de passe jamais dans les URLs ni relisibles après affichage.
+
+## 6 bis. L'interface (`frontend/`)
+
+React 18 + TypeScript + Vite + Tailwind 4. Code et commentaires en français,
+comme le reste du dépôt. Build → `webapp/static/app/` (commité), ~100 ko gzip.
+
+- `lib/filtres.ts` est le miroir de `webapp/filtres.py` : mêmes clés, mêmes
+  omissions par défaut. **L'URL est la source de vérité des filtres** (lien
+  partageable, bouton Retour fonctionnel).
+- `styles.css` porte le design system : palette de marque (bleu `#0072b1`,
+  accent orange `#ff6900`), jetons sémantiques (`--surface`, `--bordure`,
+  `--texte`…) déclinés en thème clair et sombre, exposés comme utilitaires
+  Tailwind (`bg-surface`, `text-doux`…). **Aucun composant n'utilise de
+  couleur brute** : c'est ce qui rend la bascule de thème gratuite.
+- Composants transverses dans `composants/ui/`, pages dans `pages/`, tout ce
+  qui touche à la liste dans `sessions/`.
+- Vues enregistrées : table `vues` (personnelle ou partagée), la query string
+  des filtres est stockée telle quelle et revalidée à l'écriture.
+- Le tableau est en `table-fixed` : la colonne « Formation » absorbe la place
+  restante et les cellules clippent (`overflow-hidden`), sinon le contenu
+  débordait sur la colonne voisine.
 
 ## 7. Docker & déploiement
 
 Une seule image (`ubuntu:24.04` + python3 + cron + ca-certificates + tzdata),
-deux services dans `docker-compose.yml` :
+**toujours sans Node** (le front est copié déjà construit), deux services dans
+`docker-compose.yml` :
 
 - **`scraper`** : cron intégré (`CRON_SCHEDULE`, défaut 6 h) + scrape au
   démarrage (`SCRAPE_AT_STARTUP=0` pour désactiver).
@@ -189,8 +248,13 @@ exposition plus large). `docker-entrypoint.sh` : modes `cron` / `scrape` /
 ## 8. Exploitation courante
 
 ```bash
-# Lancer le site en local (dev)
+# Lancer le site en local (dev) — sert le build commité, pas besoin de Node
 WEBAPP_ADMIN_PASSWORD=xxxx python3 -m webapp --port 8010
+
+# Retoucher l'interface (Node requis uniquement pour ça)
+npm --prefix frontend install
+npm --prefix frontend run build      # régénère webapp/static/app/ — À COMMITER
+npm --prefix frontend run dev        # rechargement à chaud, /api relayé vers 8010
 
 # Scrape complet manuel (hors Docker)
 python3 -m scraper.main --declencheur=manuel
@@ -223,6 +287,12 @@ Santé au quotidien : page `/admin` (pastilles + alertes chute de volume /
 
 - **Build Docker jamais exécuté** (pas de Docker sur la machine de dev) —
   premier `docker compose up --build` sur la cible = test réel.
+- **Build du front commité** : à régénérer et commiter après chaque
+  modification de `frontend/`, sous peine de servir une interface en retard sur
+  le code. Alternative si ça devient pénible : étage Node dans le `Dockerfile`
+  (au prix d'un accès au registre npm au moment du build de l'image).
+- Le front n'a pas de tests automatisés ; la vérification s'est faite au
+  navigateur (parcours complet, thèmes clair et sombre, mobile).
 - TEMIS : ~75 sessions « Formation non identifiée » (titres en image) —
   OCR possible, ou correction manuelle via le back office (renommage).
 - TEMIS : bascule d'année implicite à surveiller en janvier.
@@ -242,3 +312,15 @@ Santé au quotidien : page `/admin` (pastilles + alertes chute de volume /
   `domaine` ; webapp + back office (comptes, overrides, santé, scrape
   manuel, stats) ; migration du projet depuis « Scrap site » vers ce dépôt
   **Form-Inter** (désormais le dossier de référence).
+- **28/07/2026 (soir)** — Refonte de l'interface. L'outil marchait mais restait
+  une page brute peu tenable au quotidien. Décision : garder le serveur Python
+  stdlib (propre, éprouvé) et le passer en **API JSON**, remonter l'interface en
+  **React/Vite/Tailwind** avec un vrai design system (thème clair/sombre,
+  responsive). Le rendu HTML serveur (`rendu.py`, `vues_public.py`,
+  `vues_admin.py`, `static/style.css`) est supprimé. Ajouts fonctionnels :
+  fiche détail latérale (avec les autres dates de la même formation), vues
+  enregistrées personnelles ou partagées (table `vues`), recherche instantanée,
+  pastilles de filtres actifs. Deux bugs corrigés au passage, tous deux révélés
+  par les requêtes concurrentes de l'interface : la recréation systématique des
+  vues SQL (course entre threads) et l'absence d'index sur
+  `(organisme, last_seen)` (~100× sur les temps de réponse).

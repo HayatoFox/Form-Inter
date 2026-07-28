@@ -1,0 +1,265 @@
+@import 'tailwindcss';
+
+/* Thème sombre piloté par la classe `sombre` sur <html> (posée avant le
+   premier rendu par le script inline de index.html). */
+@custom-variant sombre (&:where(.sombre, .sombre *));
+
+/* --- Palette de marque ---------------------------------------------------- */
+/* Bleu PROINSEC (#0072b1) et orange d'accent (#ff6900), déclinés en échelles
+   utilisables comme n'importe quelle couleur Tailwind (bg-marque-600…). */
+@theme {
+  --color-marque-50: #eff8fd;
+  --color-marque-100: #dceffa;
+  --color-marque-200: #b8dff4;
+  --color-marque-300: #85c8ec;
+  --color-marque-400: #4aabdf;
+  --color-marque-500: #218ecb;
+  --color-marque-600: #0072b1;
+  --color-marque-700: #005c8f;
+  --color-marque-800: #084d75;
+  --color-marque-900: #0c4162;
+  --color-marque-950: #062842;
+
+  --color-accent-50: #fff5ed;
+  --color-accent-100: #ffe8d4;
+  --color-accent-200: #ffcda8;
+  --color-accent-300: #ffaa70;
+  --color-accent-400: #ff7c36;
+  --color-accent-500: #ff6900;
+  --color-accent-600: #ee4c02;
+  --color-accent-700: #c53508;
+  --color-accent-800: #9c2c0f;
+  --color-accent-900: #7e2710;
+
+  --font-sans: 'Inter var', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono',
+    Menlo, Consolas, monospace;
+
+  --radius-carte: 0.75rem;
+
+  --shadow-douce: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --shadow-relief: 0 4px 6px -1px rgb(15 23 42 / 0.07), 0 2px 4px -2px rgb(15 23 42 / 0.05);
+  --shadow-flottante: 0 16px 40px -12px rgb(15 23 42 / 0.28), 0 4px 12px -4px rgb(15 23 42 / 0.12);
+
+  --animate-apparition: apparition 0.16s ease-out;
+  --animate-glissement: glissement 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-montee: montee 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-pulsation: pulsation 1.6s ease-in-out infinite;
+}
+
+@keyframes apparition {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes glissement {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes montee {
+  from { opacity: 0; transform: translateY(0.5rem) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes pulsation {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* --- Jetons sémantiques --------------------------------------------------- */
+/* Une seule source de vérité pour les surfaces, bordures et textes : les
+   composants n'utilisent que ces noms, jamais une couleur brute. */
+:root {
+  --fond: #f2f6fa;
+  --surface: #ffffff;
+  --surface-2: #f7fafc;
+  --surface-3: #eef3f8;
+  --bordure: #e0e8f0;
+  --bordure-forte: #c9d6e3;
+  --texte: #0f1b28;
+  --texte-doux: #56687b;
+  --texte-faible: #8395a7;
+  --primaire: #0072b1;
+  --primaire-vif: #0086d1;
+  --primaire-doux: #e7f3fb;
+  --anneau: #4aabdf;
+  --succes: #17794a;
+  --succes-doux: #e3f5ea;
+  --alerte: #a9620a;
+  --alerte-doux: #fdf1e0;
+  --erreur: #c62828;
+  --erreur-doux: #fdeaea;
+  --ombre-teinte: 15 23 42;
+}
+
+.sombre {
+  --fond: #080d14;
+  --surface: #0f1720;
+  --surface-2: #151f2b;
+  --surface-3: #1c2937;
+  --bordure: #223140;
+  --bordure-forte: #33465a;
+  --texte: #e8eff6;
+  --texte-doux: #9db0c3;
+  --texte-faible: #708498;
+  --primaire: #3aa5e0;
+  --primaire-vif: #5cbcf0;
+  --primaire-doux: #10283a;
+  --anneau: #3aa5e0;
+  --succes: #4ade80;
+  --succes-doux: #10281c;
+  --alerte: #fbbf24;
+  --alerte-doux: #2c2110;
+  --erreur: #f87171;
+  --erreur-doux: #2e1517;
+  --ombre-teinte: 0 0 0;
+}
+
+/* Exposition des jetons comme couleurs Tailwind : bg-surface, text-doux… */
+@theme inline {
+  --color-fond: var(--fond);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-bordure: var(--bordure);
+  --color-bordure-forte: var(--bordure-forte);
+  --color-texte: var(--texte);
+  --color-doux: var(--texte-doux);
+  --color-faible: var(--texte-faible);
+  --color-primaire: var(--primaire);
+  --color-primaire-vif: var(--primaire-vif);
+  --color-primaire-doux: var(--primaire-doux);
+  --color-succes: var(--succes);
+  --color-succes-doux: var(--succes-doux);
+  --color-alerte: var(--alerte);
+  --color-alerte-doux: var(--alerte-doux);
+  --color-erreur: var(--erreur);
+  --color-erreur-doux: var(--erreur-doux);
+}
+
+/* --- Base ----------------------------------------------------------------- */
+@layer base {
+  * {
+    border-color: var(--bordure);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--bordure-forte) transparent;
+  }
+
+  body {
+    margin: 0;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Un seul anneau de focus pour toute l'application, visible au clavier
+     uniquement (les clics souris ne le déclenchent pas). */
+  :focus-visible {
+    outline: 2px solid var(--anneau);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+
+  h1, h2, h3 {
+    font-weight: 600;
+    letter-spacing: -0.014em;
+    color: var(--texte);
+  }
+
+  /* Les chiffres alignés verticalement dans les tableaux (dates, durées,
+     tarifs) : sans ça les colonnes « dansent » d'une ligne à l'autre. */
+  table, .chiffres {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--bordure-forte);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--texte-faible);
+    background-clip: content-box;
+  }
+
+  /* Champs natifs : on neutralise l'apparence système pour que date/heure et
+     nombres ressemblent aux champs texte du design system. */
+  input[type='date']::-webkit-calendar-picker-indicator {
+    opacity: 0.5;
+    cursor: pointer;
+  }
+  .sombre input[type='date']::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.55;
+  }
+}
+
+/* --- Badges de domaine ---------------------------------------------------- */
+/* Couleur stable par domaine (index calculé depuis le libellé, cf.
+   lib/domaines.ts) : un domaine garde la même teinte d'une page à l'autre. */
+@layer components {
+  .dom {
+    --dom-fond: var(--surface-3);
+    --dom-texte: var(--texte-doux);
+    --dom-bord: var(--bordure);
+    background: var(--dom-fond);
+    color: var(--dom-texte);
+    border-color: var(--dom-bord);
+  }
+  .dom-0 { --dom-fond: #e7f2fb; --dom-texte: #0a5b8c; --dom-bord: #bcdcf1; }
+  .dom-1 { --dom-fond: #fdefe2; --dom-texte: #a1560a; --dom-bord: #f4d0ab; }
+  .dom-2 { --dom-fond: #e5f5ec; --dom-texte: #14724a; --dom-bord: #bde0cc; }
+  .dom-3 { --dom-fond: #f2e9fb; --dom-texte: #6f38a5; --dom-bord: #ddc7f0; }
+  .dom-4 { --dom-fond: #fde9ec; --dom-texte: #ab2540; --dom-bord: #f4c0c9; }
+  .dom-5 { --dom-fond: #fdf5d8; --dom-texte: #7d6208; --dom-bord: #ecdb96; }
+  .dom-6 { --dom-fond: #e0f3f4; --dom-texte: #0d6c72; --dom-bord: #aadde0; }
+  .dom-7 { --dom-fond: #eaeef4; --dom-texte: #435872; --dom-bord: #ccd6e3; }
+
+  .sombre .dom-0 { --dom-fond: #0d2537; --dom-texte: #7cc4ec; --dom-bord: #1c405c; }
+  .sombre .dom-1 { --dom-fond: #2e1d0c; --dom-texte: #f0ab5f; --dom-bord: #4d3315; }
+  .sombre .dom-2 { --dom-fond: #0e2a1d; --dom-texte: #67cf9a; --dom-bord: #1a462f; }
+  .sombre .dom-3 { --dom-fond: #241634; --dom-texte: #c39bea; --dom-bord: #3c2755; }
+  .sombre .dom-4 { --dom-fond: #2f1319; --dom-texte: #f18a9e; --dom-bord: #4e2029; }
+  .sombre .dom-5 { --dom-fond: #2a2409; --dom-texte: #ddc558; --dom-bord: #453b12; }
+  .sombre .dom-6 { --dom-fond: #0a2a2c; --dom-texte: #5fc9ce; --dom-bord: #144548; }
+  .sombre .dom-7 { --dom-fond: #1a2432; --dom-texte: #a3b6cd; --dom-bord: #2c3c4f; }
+}
+
+/* --- Utilitaires ---------------------------------------------------------- */
+@utility ombre-douce {
+  box-shadow: var(--shadow-douce);
+}
+@utility ombre-relief {
+  box-shadow: var(--shadow-relief);
+}
+@utility ombre-flottante {
+  box-shadow: var(--shadow-flottante);
+}
+
+/* Dégradé de fondu en bas d'une zone défilante (indique qu'il reste du
+   contenu sous la ligne de flottaison). */
+@utility masque-bas {
+  mask-image: linear-gradient(to bottom, black calc(100% - 2rem), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

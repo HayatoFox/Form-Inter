@@ -7,7 +7,7 @@ admin) passent par url_liste() pour rester cohérentes entre elles.
 
 import re
 from datetime import date
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode
 
 from . import config
 
@@ -64,7 +64,20 @@ def parser(query: dict) -> dict:
         f["page"] = max(1, min(int(_premier(query, "page", "1")), 10000))
     except ValueError:
         f["page"] = 1
+    try:
+        par_page = int(_premier(query, "par_page", str(config.PAR_PAGE)))
+    except ValueError:
+        par_page = config.PAR_PAGE
+    f["par_page"] = par_page if par_page in config.PAR_PAGE_CHOIX else config.PAR_PAGE
     return f
+
+
+def depuis_query(chaine: str) -> dict:
+    """Filtres validés depuis une query string (« f=1&domaine=… »).
+
+    Point d'entrée des vues enregistrées : leur contenu repasse par le même
+    parser que les paramètres d'URL, donc par la même validation."""
+    return parser(parse_qs(chaine.lstrip("?"), keep_blank_values=True))
 
 
 def _echapper_like(texte: str) -> str:
@@ -156,10 +169,17 @@ def url_liste(f: dict, base: str = "/", **surcharges) -> str:
     if f["tri"] != TRI_DEFAUT or f["ordre"] != "asc":
         params.append(("tri", f["tri"]))
         params.append(("ordre", f["ordre"]))
+    if f.get("par_page", config.PAR_PAGE) != config.PAR_PAGE:
+        params.append(("par_page", str(f["par_page"])))
     if f.get("page", 1) > 1:
         params.append(("page", str(f["page"])))
     chaine = urlencode(params)
     return f"{base}?{chaine}" if chaine else base
+
+
+def vers_query(f: dict) -> str:
+    """Query string canonique des filtres, sans le `?` (stockage des vues)."""
+    return url_liste(f, base="").lstrip("?")
 
 
 def requete_sessions(conn, f: dict, pagine: bool = True):
@@ -169,6 +189,7 @@ def requete_sessions(conn, f: dict, pagine: bool = True):
         f"SELECT COUNT(*) FROM sessions_effectives WHERE {where}", params).fetchone()[0]
     sql = f"SELECT * FROM sessions_effectives WHERE {where} {clause_tri(f)}"
     if pagine:
+        par_page = f.get("par_page", config.PAR_PAGE)
         sql += " LIMIT ? OFFSET ?"
-        params = params + [config.PAR_PAGE, (f["page"] - 1) * config.PAR_PAGE]
+        params = params + [par_page, (f["page"] - 1) * par_page]
     return conn.execute(sql, params).fetchall(), total

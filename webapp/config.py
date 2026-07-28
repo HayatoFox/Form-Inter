@@ -10,6 +10,7 @@ DATA_DIR = DB_PATH.parent
 LOGS_DIR = DB_PATH.parent.parent / "logs"
 
 PAR_PAGE = 50
+PAR_PAGE_CHOIX = (25, 50, 100, 200)  # tailles de page proposées dans l'interface
 DUREE_SESSION_S = 7 * 24 * 3600     # validité du cookie de connexion
 
 # Santé des scrapers

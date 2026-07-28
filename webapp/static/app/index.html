@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>PROINSEC Formations</title>
+    <script>
+      // Appliqué avant le premier rendu : évite le flash de thème clair.
+      try {
+        var t = localStorage.getItem('proinsec-theme')
+        var sombre = t === 'sombre' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.toggle('sombre', sombre)
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/assets/index-CtS5KFuY.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BhL5Mwa4.css">
+  </head>
+  <body>
+    <div id="racine"></div>
+  </body>
+</html>

@@ -15,9 +15,17 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY scraper/ scraper/
+# webapp/static/app/ contient le build de l'interface (frontend/), commité :
+# l'image n'a donc besoin ni de Node ni d'accès au registre npm. Après une
+# modification du front, penser à `npm --prefix frontend run build` et à
+# commiter le résultat avant de reconstruire l'image.
 COPY webapp/ webapp/
 COPY run_scraper.sh docker-entrypoint.sh ./
-RUN chmod +x run_scraper.sh docker-entrypoint.sh
+RUN chmod +x run_scraper.sh docker-entrypoint.sh \
+ && test -f webapp/static/app/index.html \
+    || (echo "ERREUR : interface non construite (webapp/static/app/index.html absent)." \
+        && echo "Lancez 'npm --prefix frontend install && npm --prefix frontend run build'." \
+        && exit 1)
 
 VOLUME ["/app/data", "/app/logs"]
 

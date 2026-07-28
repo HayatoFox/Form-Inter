@@ -3,3 +3,8 @@ data/
 logs/
 .venv/
 vendor/
+node_modules/
+*.tsbuildinfo
+
+# webapp/static/app/ (build du front) est volontairement suivi par git :
+# c'est lui que le serveur Python sert, sans étape de construction.

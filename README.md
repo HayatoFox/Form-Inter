@@ -1,32 +1,52 @@
 # Scrap formations
 
 Collecte automatisée (cron) des sessions de formation de différents organismes
-vers une base SQLite, avec site web interne de consultation/tri et back
+vers une base SQLite, avec plateforme web interne de consultation/tri et back
 office admin (PROINSEC).
 
-## Site web interne (`webapp/`)
+## Plateforme interne
 
-Serveur 100 % stdlib Python (`ThreadingHTTPServer`), zéro dépendance, zéro
-JavaScript. Lancement local : `python3 -m webapp` (port 8000, `--port` pour
-changer) ; via Docker : service `webapp` du compose (ci-dessous).
+Deux morceaux :
+
+- **`webapp/`** — serveur HTTP 100 % stdlib Python (`ThreadingHTTPServer`),
+  zéro dépendance. Il expose une **API JSON** sous `/api/` et sert les
+  fichiers de l'interface.
+- **`frontend/`** — l'interface : React + TypeScript + Vite + Tailwind. Son
+  build est produit dans `webapp/static/app/` et **commité**, pour que
+  `python3 -m webapp` et l'image Docker fonctionnent sans Node.
+
+Lancement local : `python3 -m webapp` (port 8000, `--port` pour changer) ;
+via Docker : service `webapp` du compose (ci-dessous).
 
 - **Connexion obligatoire** (comptes internes ; SSO envisageable plus tard,
   `webapp/auth.py` est isolé pour ça). Au premier démarrage, le compte admin
   initial est créé depuis `WEBAPP_ADMIN_USER` / `WEBAPP_ADMIN_PASSWORD`
   (mot de passe généré et affiché en console sinon).
-- **Liste des sessions** : filtres combinables (domaine, organisme, ville,
-  dates, durée, recherche, passées/permanentes/historique) appliqués par un
-  unique bouton « Filtrer » — une requête par action, aucun appel dynamique.
-  Tri par colonne, pagination (50/page), exports CSV et Excel du résultat
-  filtré. Par défaut : offre courante, sessions à venir + permanentes.
+- **Liste des sessions** : recherche instantanée, filtres combinables
+  (domaine, organisme, ville, période, durée, passées/permanentes/historique)
+  avec sélecteurs recherchables et compteurs, raccourcis de période, pastilles
+  des filtres actifs retirables une par une. Tri par colonne, pagination
+  (25/50/100/200 par page), exports CSV et Excel du résultat filtré exact.
+  Par défaut : offre courante, sessions à venir + permanentes.
+- **Fiche détail** : panneau latéral avec dates, durée, tarif, disponibilité,
+  remarque du site source, note interne, traçabilité de collecte, lien vers la
+  fiche d'origine et **les autres dates de la même formation**.
+- **Vues enregistrées** : une combinaison de filtres (« CACES Grand Ouest »,
+  « Habilitations à 30 jours ») se nomme et se rappelle en un clic ; elle peut
+  être personnelle ou partagée avec toute l'équipe.
 - **Back office** (rôle admin) : corrections durables de sessions (masquer,
   renommer, reclasser, note interne — survivent aux scrapes via la table
   `overrides` appliquée en lecture), santé des scrapers (alertes échec /
   chute de volume / cron muet), scrape manuel avec verrou anti-collision
   cron (`data/.scrape.lock`, flock), statistiques, gestion des comptes.
-- Sécurité : SQL paramétré, échappement HTML systématique, scrypt pour les
-  mots de passe, cookies signés HMAC, CSRF sur tous les POST. Le port doit
-  rester sur le LAN/VPN (pas de HTTPS intégré).
+- **Thème clair / sombre** (suit le système par défaut), interface responsive
+  jusqu'au téléphone.
+- L'URL porte les filtres : un lien collé dans un message rouvre exactement la
+  même liste.
+- Sécurité : SQL paramétré, scrypt pour les mots de passe, cookies signés HMAC
+  `HttpOnly`+`SameSite=Lax`, jeton CSRF exigé sur toute écriture (en-tête
+  `X-CSRF-Token`), CSP stricte sans `unsafe-inline` pour les scripts. Le port
+  doit rester sur le LAN/VPN (pas de HTTPS intégré).
 
 ## Lancement
 
@@ -34,13 +54,35 @@ changer) ; via Docker : service `webapp` du compose (ci-dessous).
 python3 -m scraper.main
 ```
 
-Aucune dépendance externe : bibliothèque standard Python uniquement
-(urllib, sqlite3, re). La base est créée automatiquement dans
+Le scraper n'a aucune dépendance externe : bibliothèque standard Python
+uniquement (urllib, sqlite3, re). La base est créée automatiquement dans
 `data/formations.db`.
+
+## Modifier l'interface
+
+Node n'est nécessaire que pour retoucher le front.
+
+```bash
+npm --prefix frontend install       # une fois
+npm --prefix frontend run build     # régénère webapp/static/app/ — à commiter
+```
+
+Développement avec rechargement à chaud (deux terminaux) :
+
+```bash
+python3 -m webapp --port 8010       # l'API
+npm --prefix frontend run dev       # http://localhost:5173, /api relayé vers 8010
+```
+
+**Après toute modification du front, relancer le build et commiter
+`webapp/static/app/`** : c'est ce dossier qui est servi en production, et
+l'image Docker refuse de se construire s'il est absent.
 
 ## Docker (recommandé)
 
-Image basée sur Ubuntu 24.04 (noble), cron intégré, aucune dépendance Python.
+Image basée sur Ubuntu 24.04 (noble), cron intégré, aucune dépendance Python
+et **pas de Node** : l'interface est copiée déjà construite depuis
+`webapp/static/app/`.
 
 ```bash
 docker compose up -d --build

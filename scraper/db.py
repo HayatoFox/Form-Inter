@@ -28,6 +28,11 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_date_debut ON sessions (date_debut);
 CREATE INDEX IF NOT EXISTS idx_sessions_ville ON sessions (ville);
 CREATE INDEX IF NOT EXISTS idx_sessions_domaine ON sessions (domaine);
+-- Toutes les lectures du site filtrent sur « l'offre courante », c'est-à-dire
+-- last_seen = MAX(last_seen) de l'organisme. Sans cet index, ce MAX corrélé
+-- rebalayait la table pour chaque ligne examinée (~2 s par requête).
+CREATE INDEX IF NOT EXISTS idx_sessions_organisme_last_seen
+    ON sessions (organisme, last_seen);
 
 CREATE TABLE IF NOT EXISTS utilisateurs (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,12 +74,27 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
     declencheur TEXT NOT NULL DEFAULT 'cron'
 );
 CREATE INDEX IF NOT EXISTS idx_runs_org ON scrape_runs (organisme, demarre_le);
+
+-- Combinaisons de filtres mémorisées par un utilisateur (« CACES Grand Ouest »,
+-- « Habilitations à 30 jours »…). `filtres` est le JSON des filtres validés :
+-- il est reparsé par filtres.parser() à l'application, jamais injecté en SQL.
+-- partagee = 1 : la vue est proposée à toute l'équipe.
+CREATE TABLE IF NOT EXISTS vues (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    utilisateur_id INTEGER NOT NULL,
+    nom            TEXT NOT NULL,
+    filtres        TEXT NOT NULL,
+    partagee       INTEGER NOT NULL DEFAULT 0,
+    cree_le        TEXT NOT NULL,
+    UNIQUE (utilisateur_id, nom)
+);
+CREATE INDEX IF NOT EXISTS idx_vues_utilisateur ON vues (utilisateur_id);
 """
 
-# Recréée à chaque connexion pour absorber les évolutions de schéma.
-VUES = """
-DROP VIEW IF EXISTS sessions_effectives;
-CREATE VIEW sessions_effectives AS
+# Vue de lecture appliquant les corrections admin. Sa définition peut évoluer
+# d'une version à l'autre : `_synchroniser_vues()` la recrée quand elle a
+# changé, et seulement dans ce cas (cf. la note sur la concurrence).
+VUE_SESSIONS_EFFECTIVES = """CREATE VIEW sessions_effectives AS
 SELECT s.id, s.organisme,
        COALESCE(o.formation_override, s.formation) AS formation,
        s.formation                                 AS formation_origine,
@@ -92,8 +112,47 @@ LEFT JOIN overrides o
   AND o.formation  = s.formation
   AND o.ville      = COALESCE(s.ville, '')
   AND o.date_debut = COALESCE(s.date_debut, '')
-  AND o.date_fin   = COALESCE(s.date_fin, '');
-"""
+  AND o.date_fin   = COALESCE(s.date_fin, '')"""
+
+_VUES = {"sessions_effectives": VUE_SESSIONS_EFFECTIVES}
+
+
+def _normaliser(sql: str) -> str:
+    """Compare deux définitions SQL en ignorant l'indentation."""
+    return " ".join(sql.split())
+
+
+def _synchroniser_vues(conn: sqlite3.Connection) -> None:
+    """Recrée les vues dont la définition a changé — et uniquement celles-là.
+
+    Les recréer systématiquement (DROP + CREATE à chaque connexion) posait
+    deux problèmes : la webapp ouvre une connexion par requête HTTP et le
+    navigateur en lance plusieurs de front, ce qui faisait courir deux threads
+    entre le DROP et le CREATE (« view already exists ») ; et cela prenait un
+    verrou d'écriture à chaque page, en concurrence avec les ~10 minutes
+    d'écriture du scraper. On ne touche donc à la base que si la définition
+    stockée diffère réellement de celle du code — c'est-à-dire après une mise
+    à jour du schéma, pas en fonctionnement normal.
+    """
+    for nom, definition in _VUES.items():
+        existante = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'view' AND name = ?",
+            (nom,)).fetchone()
+        if existante and _normaliser(existante[0]) == _normaliser(definition):
+            continue
+        try:
+            # BEGIN IMMEDIATE : le DROP et le CREATE sont atomiques vis-à-vis
+            # des autres connexions, qui attendent (busy_timeout) puis
+            # constatent que la vue est déjà à jour.
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(f"DROP VIEW IF EXISTS {nom}")
+            conn.execute(definition)
+            conn.commit()
+        except sqlite3.OperationalError:
+            # Base verrouillée par un scrape en cours, ou vue déjà recréée à
+            # l'identique par une connexion concurrente : sans gravité, la
+            # prochaine connexion réessaiera.
+            conn.rollback()
 
 # Colonnes ajoutées après la première version du schéma : ajoutées à la volée
 # sur les bases existantes (ALTER TABLE), pour ne pas avoir à les recréer.
@@ -115,8 +174,8 @@ def connect(db_path: Path = DB_PATH) -> sqlite3.Connection:
     for colonne, alter in _MIGRATIONS.items():
         if colonne not in colonnes:
             conn.execute(alter)
-    conn.executescript(VUES)
     conn.commit()
+    _synchroniser_vues(conn)
     return conn
 
 
