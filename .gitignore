@@ -1,5 +1,6 @@
-__pycache__/
+# Base du backend de veille quand elle est montée à côté du site
+# (mode de liaison "sqlite" : ../data/formations.db).
 data/
-logs/
-.venv/
-vendor/
+
+# Base propre au site quand il tourne en conteneur.
+data-site/

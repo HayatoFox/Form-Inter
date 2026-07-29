@@ -1,3 +1,0 @@
-# Aucune dépendance externe : les scrapers n'utilisent que la bibliothèque
-# standard Python (urllib, sqlite3, re, json). Ce fichier est conservé pour
-# le jour où un site nécessitera une vraie dépendance (ex. playwright).

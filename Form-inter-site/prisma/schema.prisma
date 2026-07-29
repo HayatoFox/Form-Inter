@@ -10,6 +10,12 @@ datasource db {
   provider = "sqlite"
 }
 
+// Provenance d'une donnée : saisie/importée à la main dans le back office, ou
+// rapatriée depuis la base du backend de veille (scraper). La synchronisation
+// ne touche jamais aux lignes MANUEL, et le back office signale les lignes
+// BACKEND comme écrasables au prochain passage.
+// Valeurs : "MANUEL" | "BACKEND" (SQLite n'a pas d'enum côté Prisma).
+
 model Organisme {
   id         String      @id @default(cuid())
   nom        String      @unique
@@ -17,6 +23,7 @@ model Organisme {
   telephone  String?
   email      String?
   notes      String?
+  source     String      @default("MANUEL")
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   centres    Centre[]
@@ -29,6 +36,7 @@ model Centre {
   ville       String
   codePostal  String?
   adresse     String?
+  source      String    @default("MANUEL")
   organisme   Organisme @relation(fields: [organismeId], references: [id], onDelete: Cascade)
   organismeId String
   sessions    Session[]
@@ -41,6 +49,7 @@ model Centre {
 model Domaine {
   id         String      @id @default(cuid())
   nom        String      @unique
+  source     String      @default("MANUEL")
   formations Formation[]
 }
 
@@ -50,6 +59,11 @@ model Formation {
   description String?
   dureeValeur Float?
   dureeUnite  String?
+  // Libellé de catégorie tel qu'affiché par le site source (nomenclatures
+  // hétérogènes) ; `domaine` reste la classification commune.
+  typeFormation String?
+  urlProgramme  String?
+  source        String  @default("MANUEL")
   organisme   Organisme @relation(fields: [organismeId], references: [id], onDelete: Cascade)
   organismeId String
   domaine     Domaine?  @relation(fields: [domaineId], references: [id])
@@ -69,17 +83,64 @@ model Session {
   formationId String
   centre      Centre?   @relation(fields: [centreId], references: [id])
   centreId    String?
-  dateDebut   DateTime
+  // NULL = session à entrée/sortie permanente (offre ouverte en continu),
+  // cas remonté tel quel par le backend.
+  dateDebut   DateTime?
   dateFin     DateTime?
+  permanente  Boolean   @default(false)
+  dureeJours  Float?
+  tarif       String?
+  remarque    String?
   placesInfo  String?
+  urlProgramme String?
+  sourceUrl   String?
+  source      String    @default("MANUEL")
+  // Clé naturelle de la session côté backend
+  // (organisme|formation|ville|date_debut|date_fin) : les id AUTOINCREMENT du
+  // backend ne sont pas stables si la base est régénérée.
+  sourceRef   String?   @unique
+  firstSeen   DateTime?
+  lastSeen    DateTime?
+  syncedAt    DateTime?
 
   @@index([formationId])
   @@index([centreId])
   @@index([dateDebut])
+  @@index([source])
 }
 
 model AdminUser {
   id           String @id @default(cuid())
   email        String @unique
   passwordHash String
+}
+
+// Réglages modifiables depuis le back office (liaison backend notamment).
+// Une valeur en base l'emporte sur la variable d'environnement correspondante.
+model Reglage {
+  cle       String   @id
+  valeur    String
+  updatedAt DateTime @updatedAt
+}
+
+// Un enregistrement par passage de synchronisation avec le backend.
+model SyncRun {
+  id               String    @id @default(cuid())
+  mode             String // "http" | "sqlite"
+  declencheur      String // "manuel" | "auto" | "cron"
+  statut           String // "ok" | "erreur"
+  demarreLe        DateTime  @default(now())
+  termineLe        DateTime?
+  dureeMs          Int?
+  lignesRecues     Int       @default(0)
+  organismesCrees  Int       @default(0)
+  centresCrees     Int       @default(0)
+  domainesCrees    Int       @default(0)
+  formationsCreees Int       @default(0)
+  sessionsCreees   Int       @default(0)
+  sessionsMajs     Int       @default(0)
+  sessionsRetirees Int       @default(0)
+  message          String?
+
+  @@index([demarreLe])
 }

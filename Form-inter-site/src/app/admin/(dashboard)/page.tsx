@@ -1,19 +1,42 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { cleanupPastSessions } from "@/lib/session-cleanup";
+import { planifierSyncAuto } from "@/lib/backend/auto";
+import { libelleMode, lireConfigBackend } from "@/lib/backend/config";
+import { dernierPassageReussi, passageEnRetard } from "@/lib/backend/sync";
+import { BACKEND, MANUEL } from "@/lib/backend/types";
 import { DangerZone } from "@/components/admin/DangerZone";
+
+const horodatage = new Intl.DateTimeFormat("fr-FR", {
+  dateStyle: "short",
+  timeStyle: "short",
+});
 
 export default async function AdminDashboardPage() {
   await cleanupPastSessions();
+  await planifierSyncAuto();
 
-  const [organismes, centres, formations, sessions, domaines] =
-    await Promise.all([
-      prisma.organisme.count(),
-      prisma.centre.count(),
-      prisma.formation.count(),
-      prisma.session.count(),
-      prisma.domaine.count(),
-    ]);
+  const [
+    organismes,
+    centres,
+    formations,
+    sessions,
+    domaines,
+    sessionsBackend,
+    sessionsManuelles,
+    config,
+    dernierSync,
+  ] = await Promise.all([
+    prisma.organisme.count(),
+    prisma.centre.count(),
+    prisma.formation.count(),
+    prisma.session.count(),
+    prisma.domaine.count(),
+    prisma.session.count({ where: { source: BACKEND } }),
+    prisma.session.count({ where: { source: MANUEL } }),
+    lireConfigBackend(),
+    dernierPassageReussi(),
+  ]);
 
   const stats = [
     { label: "Organismes", value: organismes, href: "/admin/organismes" },
@@ -22,6 +45,10 @@ export default async function AdminDashboardPage() {
     { label: "Formations", value: formations, href: "/admin/formations" },
     { label: "Sessions", value: sessions, href: "/admin/formations" },
   ];
+
+  const liaisonActive = config.mode !== "off";
+  const enRetard =
+    liaisonActive && passageEnRetard(dernierSync, config.ttlMinutes);
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,12 +65,45 @@ export default async function AdminDashboardPage() {
           </Link>
         ))}
       </div>
+
+      <Link
+        href="/admin/sources"
+        className={`block rounded-lg border p-6 hover:shadow-md ${
+          enRetard
+            ? "border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+            : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+        }`}
+      >
+        <h2 className="text-base font-semibold">Liaison backend</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          {libelleMode(config.mode)}
+          {liaisonActive && (
+            <>
+              {" · "}
+              {dernierSync
+                ? `dernière synchronisation ${horodatage.format(dernierSync.demarreLe)}`
+                : "jamais synchronisée"}
+            </>
+          )}
+        </p>
+        <p className="mt-2 text-sm text-zinc-500">
+          {sessionsBackend} session(s) du backend · {sessionsManuelles}{" "}
+          session(s) manuelle(s)
+        </p>
+        {enRetard && (
+          <p className="mt-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+            La dernière synchronisation réussie est ancienne — vérifiez la
+            liaison.
+          </p>
+        )}
+      </Link>
+
       <div className="rounded-lg border border-dashed border-zinc-300 p-6 text-sm text-zinc-500 dark:border-zinc-700">
-        Utilisez le menu ci-dessus pour gérer les organismes, domaines et
-        formations, ou importer des données en masse depuis un fichier
-        Excel/CSV. Les sessions dont la date de début est passée sont
-        automatiquement supprimées à chaque visite de cette page ou de la
-        recherche publique.
+        Le catalogue se remplit par deux chemins : la liaison avec le backend de
+        veille et l&apos;import de fichiers Excel/CSV. Les sessions manuelles
+        terminées sont supprimées à chaque visite de cette page ou de la
+        recherche publique ; celles du backend suivent ce que publie
+        l&apos;organisme.
       </div>
 
       <DangerZone counts={{ organismes, formations, sessions }} />

@@ -1,12 +1,70 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { debutDuJour, formatDateLong, formatPeriode } from "@/lib/dates";
+import { BACKEND } from "@/lib/backend/types";
 
-const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  day: "2-digit",
-  month: "long",
-  year: "numeric",
-});
+export const dynamic = "force-dynamic";
+
+type SessionAffichee = {
+  id: string;
+  dateDebut: Date | null;
+  dateFin: Date | null;
+  dureeJours: number | null;
+  tarif: string | null;
+  remarque: string | null;
+  placesInfo: string | null;
+  urlProgramme: string | null;
+  sourceUrl: string | null;
+  centre: { nom: string; ville: string } | null;
+};
+
+function LigneSession({
+  session,
+  passee = false,
+}: {
+  session: SessionAffichee;
+  passee?: boolean;
+}) {
+  return (
+    <li
+      className={`rounded-md border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-800 ${
+        passee ? "text-zinc-500" : ""
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className={passee ? "" : "font-medium"}>
+          {formatPeriode(session)}
+        </span>
+        <span className="text-zinc-500">
+          {session.centre
+            ? `${session.centre.nom} — ${session.centre.ville}`
+            : "Lieu à confirmer"}
+        </span>
+      </div>
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
+        {session.dureeJours !== null && (
+          <span>
+            {session.dureeJours} jour{session.dureeJours > 1 ? "s" : ""}
+          </span>
+        )}
+        {session.tarif && <span>{session.tarif}</span>}
+        {session.placesInfo && <span>{session.placesInfo}</span>}
+        {session.remarque && <span>{session.remarque}</span>}
+        {session.sourceUrl && (
+          <a
+            href={session.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            Voir sur le site de l&apos;organisme ↗
+          </a>
+        )}
+      </div>
+    </li>
+  );
+}
 
 export default async function FormationDetailPage({
   params,
@@ -22,16 +80,24 @@ export default async function FormationDetailPage({
       domaine: true,
       sessions: {
         include: { centre: true },
-        orderBy: { dateDebut: "asc" },
+        orderBy: { dateDebut: { sort: "asc", nulls: "last" } },
       },
     },
   });
 
   if (!formation) notFound();
 
-  const now = new Date();
-  const upcoming = formation.sessions.filter((s) => s.dateDebut >= now);
-  const past = formation.sessions.filter((s) => s.dateDebut < now);
+  const aujourdhui = debutDuJour();
+  const permanentes = formation.sessions.filter((s) => !s.dateDebut);
+  const datees = formation.sessions.filter((s) => s.dateDebut !== null);
+  const upcoming = datees.filter((s) => (s.dateFin ?? s.dateDebut!) >= aujourdhui);
+  const past = datees.filter((s) => (s.dateFin ?? s.dateDebut!) < aujourdhui);
+
+  // Date du dernier scrape où l'organisme publiait encore cette formation.
+  const derniereVue = formation.sessions
+    .filter((s) => s.source === BACKEND && s.lastSeen)
+    .map((s) => s.lastSeen!.getTime())
+    .reduce<number | null>((max, t) => (max === null || t > max ? t : max), null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -61,6 +127,7 @@ export default async function FormationDetailPage({
           >
             {formation.organisme.nom}
           </Link>
+          {formation.typeFormation && ` · ${formation.typeFormation}`}
         </p>
 
         {formation.dureeValeur && (
@@ -74,32 +141,39 @@ export default async function FormationDetailPage({
             {formation.description}
           </p>
         )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
+          {formation.urlProgramme && (
+            <a
+              href={formation.urlProgramme}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              Programme de la formation ↗
+            </a>
+          )}
+          {derniereVue !== null && (
+            <span className="text-xs text-zinc-500">
+              Relevé chez l&apos;organisme le {formatDateLong(new Date(derniereVue))}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-lg font-semibold">Sessions à venir</h2>
-        {upcoming.length === 0 ? (
+        {upcoming.length === 0 && permanentes.length === 0 ? (
           <p className="mt-2 text-sm text-zinc-500">
             Aucune session à venir n&apos;est planifiée pour cette formation.
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
             {upcoming.map((s) => (
-              <li
-                key={s.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-800"
-              >
-                <span className="font-medium">
-                  {dateFormatter.format(s.dateDebut)}
-                  {s.dateFin ? ` → ${dateFormatter.format(s.dateFin)}` : ""}
-                </span>
-                <span className="text-zinc-500">
-                  {s.centre ? `${s.centre.nom} — ${s.centre.ville}` : "Lieu à confirmer"}
-                </span>
-                {s.placesInfo && (
-                  <span className="text-zinc-500">{s.placesInfo}</span>
-                )}
-              </li>
+              <LigneSession key={s.id} session={s} />
+            ))}
+            {permanentes.map((s) => (
+              <LigneSession key={s.id} session={s} />
             ))}
           </ul>
         )}
@@ -111,15 +185,7 @@ export default async function FormationDetailPage({
             </summary>
             <ul className="mt-3 flex flex-col gap-2">
               {past.map((s) => (
-                <li
-                  key={s.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-200 px-4 py-3 text-sm text-zinc-500 dark:border-zinc-800"
-                >
-                  <span>{dateFormatter.format(s.dateDebut)}</span>
-                  <span>
-                    {s.centre ? `${s.centre.nom} — ${s.centre.ville}` : ""}
-                  </span>
-                </li>
+                <LigneSession key={s.id} session={s} passee />
               ))}
             </ul>
           </details>

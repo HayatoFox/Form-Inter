@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { MANUEL } from "@/lib/backend/types";
 import { importRowSchema, type ImportRow } from "@/lib/validation";
 
 type RowResult =
   | { status: "ok"; sessionCreated: boolean }
   | { status: "error"; message: string };
 
+// Les lignes importées portent source = MANUEL : la synchronisation avec le
+// backend ne les touche jamais. Symétriquement, un import ne modifie pas une
+// session déjà rapatriée du backend — il se contente de ne pas la dupliquer.
 async function processRow(data: ImportRow): Promise<RowResult> {
   const organisme = await prisma.organisme.upsert({
     where: { nom: data.organisme },
     update: {},
-    create: { nom: data.organisme },
+    create: { nom: data.organisme, source: MANUEL },
   });
 
   let domaineId: string | undefined;
@@ -19,7 +23,7 @@ async function processRow(data: ImportRow): Promise<RowResult> {
     const domaine = await prisma.domaine.upsert({
       where: { nom: data.domaine },
       update: {},
-      create: { nom: data.domaine },
+      create: { nom: data.domaine, source: MANUEL },
     });
     domaineId = domaine.id;
   }
@@ -32,7 +36,12 @@ async function processRow(data: ImportRow): Promise<RowResult> {
         organismeId_nom: { organismeId: organisme.id, nom: centreNom },
       },
       update: { ville: data.ville },
-      create: { nom: centreNom, ville: data.ville, organismeId: organisme.id },
+      create: {
+        nom: centreNom,
+        ville: data.ville,
+        organismeId: organisme.id,
+        source: MANUEL,
+      },
     });
     centreId = centre.id;
   }
@@ -48,6 +57,8 @@ async function processRow(data: ImportRow): Promise<RowResult> {
       description: data.description || undefined,
       dureeValeur: data.dureeValeur ?? undefined,
       dureeUnite: data.dureeUnite || undefined,
+      typeFormation: data.typeFormation || undefined,
+      urlProgramme: data.urlProgramme || undefined,
       domaineId: domaineId ?? undefined,
     },
     create: {
@@ -56,7 +67,10 @@ async function processRow(data: ImportRow): Promise<RowResult> {
       description: data.description || null,
       dureeValeur: data.dureeValeur ?? null,
       dureeUnite: data.dureeUnite || null,
+      typeFormation: data.typeFormation || null,
+      urlProgramme: data.urlProgramme || null,
       domaineId: domaineId ?? null,
+      source: MANUEL,
     },
   });
 
@@ -68,17 +82,34 @@ async function processRow(data: ImportRow): Promise<RowResult> {
         centreId: centreId ?? null,
         dateDebut: data.dateDebut,
       },
+      select: { id: true, source: true },
     });
+
+    const champsSession = {
+      dateFin: data.dateFin ?? null,
+      tarif: data.tarif || null,
+      placesInfo: data.placesInfo || null,
+      remarque: data.remarque || null,
+      urlProgramme: data.urlProgramme || null,
+    };
+
     if (!existing) {
       await prisma.session.create({
         data: {
           formationId: formation.id,
           centreId: centreId ?? null,
           dateDebut: data.dateDebut,
-          dateFin: data.dateFin ?? null,
+          source: MANUEL,
+          ...champsSession,
         },
       });
       sessionCreated = true;
+    } else if (existing.source === MANUEL) {
+      // Réimport du même fichier corrigé : la ligne manuelle est rafraîchie.
+      await prisma.session.update({
+        where: { id: existing.id },
+        data: champsSession,
+      });
     }
   }
 
@@ -128,6 +159,7 @@ export async function POST(request: NextRequest) {
     revalidatePath("/admin/formations");
     revalidatePath("/admin/organismes");
     revalidatePath("/admin/domaines");
+    revalidatePath("/admin/sources");
   }
 
   return NextResponse.json({
