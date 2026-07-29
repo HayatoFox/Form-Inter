@@ -30,6 +30,16 @@ export class ErreurBackend extends Error {
   }
 }
 
+// Le backend est en train de collecter : son catalogue est à moitié écrit.
+// Distinguée d'une vraie panne, cette situation ne compte pas comme un échec —
+// la synchronisation est simplement reportée au prochain passage.
+export class CollecteEnCours extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CollecteEnCours";
+  }
+}
+
 export type Connecteur = {
   mode: "http" | "sqlite";
   /** Vérifie que la liaison répond, sans rapatrier le catalogue. */
@@ -106,19 +116,32 @@ function creerConnecteurHttp(config: ConfigBackend): Connecteur {
     }
   }
 
+  async function lireSante(): Promise<Sante> {
+    const brut = await appeler("/api/sante");
+    const parsee = reponseSanteSchema.safeParse(brut);
+    if (!parsee.success) {
+      throw new ErreurBackend("Réponse inattendue de /api/sante");
+    }
+    return parsee.data;
+  }
+
   return {
     mode: "http",
 
-    async tester() {
-      const brut = await appeler("/api/sante");
-      const parsee = reponseSanteSchema.safeParse(brut);
-      if (!parsee.success) {
-        throw new ErreurBackend("Réponse inattendue de /api/sante");
-      }
-      return parsee.data;
-    },
+    tester: lireSante,
 
     async lireSessions() {
+      // Un passage de collecte en cours signifie un catalogue à moitié écrit :
+      // les organismes pas encore scrapés n'ont aucune ligne courante, et les
+      // rapatrier maintenant amputerait le site jusqu'au prochain
+      // rafraîchissement.
+      const sante = await lireSante();
+      if (sante.scrape_en_cours) {
+        throw new CollecteEnCours(
+          "Le backend est en train de collecter : synchronisation reportée."
+        );
+      }
+
       const lignes: LigneBackend[] = [];
       let page = 1;
       let pages = 1;

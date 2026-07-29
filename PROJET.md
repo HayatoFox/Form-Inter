@@ -209,6 +209,21 @@ Points structurants :
   visite quand le dernier passage dépasse la fraîcheur demandée (`after()` de
   Next.js, le visiteur n'attend pas), ou `GET /api/cron/sync` avec
   `CRON_SECRET` depuis un cron système.
+- **Pas de synchronisation pendant une collecte** : `/api/sante` expose
+  `scrape_en_cours` (sonde du verrou `data/.scrape.lock`) et le site reporte le
+  passage. Sans ça, le premier démarrage rapatrie un catalogue à moitié écrit —
+  les organismes pas encore scrapés n'ont aucune session courante — et le site
+  reste amputé jusqu'à la péremption suivante. Un passage reporté est consigné
+  « ignore » et non « ok », donc le rafraîchissement automatique réessaie à la
+  visite suivante au lieu d'attendre une heure.
+- **Formations ≠ sessions** : le site liste des formations (une par couple
+  organisme + intitulé), le site de veille des sessions. Quelques centaines
+  contre quelques milliers : la page affiche les deux nombres, faute de quoi
+  la comparaison entre les deux sites fait croire à une perte de données.
+- **Cookie d'administration** : marqué `Secure` seulement si la requête arrive
+  en HTTPS (`X-Forwarded-Proto`), ou si `COOKIE_SECURE=1`. Le marquer sur un
+  `NODE_ENV=production` servi en HTTP sur le LAN — le cas nominal ici — rend la
+  connexion impossible : le navigateur refuse le cookie, sans message.
 
 ## 7. Docker & déploiement
 

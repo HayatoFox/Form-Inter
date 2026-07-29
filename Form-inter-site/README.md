@@ -32,6 +32,7 @@ npm run dev                 # http://localhost:3000
 | `SESSION_SECRET` | Clé de signature du cookie d'administration (obligatoire) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD_SEED` | Compte admin créé par `npm run db:seed` |
 | `CRON_SECRET` | Jeton de `/api/cron/sync`. Non défini = endpoint fermé (503) |
+| `COOKIE_SECURE` | Force le drapeau `Secure` du cookie d'admin. Détecté sinon depuis `X-Forwarded-Proto` |
 | `BACKEND_MODE` | `off` (défaut), `http` ou `sqlite` |
 | `BACKEND_URL` | Base de l'API du backend en mode `http`, ex. `http://localhost:8000` |
 | `BACKEND_TOKEN` | Jeton porteur de l'API du backend (`WEBAPP_API_TOKEN` côté backend) |

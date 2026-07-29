@@ -26,6 +26,7 @@ import json
 import os
 from datetime import date
 
+from . import scrape_ctl
 from .app import Reponse
 
 # Colonnes publiées : le schéma à plat de la vue sessions_effectives, moins les
@@ -97,12 +98,17 @@ def vue_sante(req):
                   COUNT(DISTINCT organisme) AS organismes,
                   MAX(last_seen) AS dernier_scrape
            FROM sessions""").fetchone()
+    # Signalé au site pour qu'il ne rapatrie pas un catalogue à moitié écrit :
+    # pendant un passage, les organismes pas encore scrapés n'ont aucune ligne
+    # courante, et une synchronisation à cet instant amputerait le site jusqu'au
+    # rafraîchissement suivant.
     return json_reponse({
         "service": "Form-Inter backend",
         "version": 1,
         "sessions": ligne["sessions"],
         "organismes": ligne["organismes"],
         "dernier_scrape": ligne["dernier_scrape"],
+        "scrape_en_cours": scrape_ctl.scrape_en_cours() is not None,
     })
 
 

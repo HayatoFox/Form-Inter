@@ -14,6 +14,8 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
 
+const nombre = new Intl.NumberFormat("fr-FR");
+
 type SearchParams = {
   q?: string;
   domaine?: string;
@@ -100,7 +102,14 @@ export default async function FormationsPage({
     ...(sessionFilter && { sessions: { some: sessionFilter } }),
   };
 
-  const [domaines, organismes, villesRaw, total, formations] = await Promise.all([
+  const [
+    domaines,
+    organismes,
+    villesRaw,
+    total,
+    totalSessions,
+    formations,
+  ] = await Promise.all([
     prisma.domaine.findMany({ orderBy: { nom: "asc" } }),
     prisma.organisme.findMany({ orderBy: { nom: "asc" } }),
     prisma.centre.findMany({
@@ -109,6 +118,11 @@ export default async function FormationsPage({
       orderBy: { ville: "asc" },
     }),
     prisma.formation.count({ where }),
+    // Une formation regroupe toutes ses dates et tous ses lieux : le catalogue
+    // compte donc bien moins de formations que de sessions. Afficher les deux
+    // évite de croire à des données manquantes en comparant avec le site de
+    // veille, qui compte des sessions.
+    prisma.session.count({ where: { ...sessionFilter, formation: where } }),
     prisma.formation.findMany({
       where,
       include: {
@@ -149,7 +163,11 @@ export default async function FormationsPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Formations</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          {total} formation{total > 1 ? "s" : ""} trouvée{total > 1 ? "s" : ""}
+          {nombre.format(total)} formation{total > 1 ? "s" : ""} trouvée
+          {total > 1 ? "s" : ""}
+          {" · "}
+          {nombre.format(totalSessions)} session
+          {totalSessions > 1 ? "s" : ""} au total
         </p>
       </div>
 

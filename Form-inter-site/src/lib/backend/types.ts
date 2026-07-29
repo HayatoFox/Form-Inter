@@ -55,6 +55,8 @@ export const reponseSanteSchema = z.object({
   sessions: z.number().int().optional(),
   organismes: z.number().int().optional(),
   dernier_scrape: z.union([z.string(), z.null()]).optional(),
+  /** Un passage de collecte est en cours : le catalogue est incomplet. */
+  scrape_en_cours: z.boolean().optional(),
 });
 
 export type Sante = z.output<typeof reponseSanteSchema>;

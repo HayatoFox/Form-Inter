@@ -14,6 +14,7 @@ const STATUTS: Record<string, { libelle: string; classe: string }> = {
   ok: { libelle: "OK", classe: "text-emerald-600" },
   erreur: { libelle: "Erreur", classe: "text-red-600" },
   en_cours: { libelle: "En cours", classe: "text-amber-600" },
+  ignore: { libelle: "Reporté", classe: "text-zinc-500" },
 };
 
 export default async function AdminSourcesPage() {

@@ -1,7 +1,11 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { CLES, lireConfigBackend } from "@/lib/backend/config";
-import { creerConnecteur, ErreurBackend } from "@/lib/backend/connecteurs";
+import {
+  CollecteEnCours,
+  creerConnecteur,
+  ErreurBackend,
+} from "@/lib/backend/connecteurs";
 import {
   BACKEND,
   cleNormalisee,
@@ -462,6 +466,29 @@ export async function synchroniser(
     const dureeMs = Date.now() - debut;
     const message =
       err instanceof Error ? err.message : "Erreur inconnue pendant la synchronisation";
+
+    // Collecte en cours : ce n'est pas une panne. Le passage est consigné comme
+    // ignoré, donc `dernierPassageReussi` ne bouge pas — le rafraîchissement
+    // automatique réessaiera à la visite suivante plutôt que d'attendre la
+    // fraîcheur complète, et le site ne restera pas sur un catalogue partiel.
+    if (err instanceof CollecteEnCours) {
+      await prisma.syncRun.update({
+        where: { id: run.id },
+        data: {
+          statut: "ignore",
+          termineLe: new Date(),
+          dureeMs,
+          message: message.slice(0, 2000),
+        },
+      });
+      return {
+        ...VIDE,
+        statut: "ignore",
+        message,
+        mode: config.mode,
+        dureeMs,
+      };
+    }
 
     await prisma.syncRun.update({
       where: { id: run.id },

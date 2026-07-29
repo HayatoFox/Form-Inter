@@ -140,6 +140,39 @@ croit devoir le créer et échoue. Deux issues :
 `./deploy.sh` relit la sortie de Docker et affiche cette marche à suivre
 lui-même quand il reconnaît l'erreur.
 
+#### Le premier démarrage met 10 à 15 minutes à se remplir
+
+Le conteneur `scraper` lance une collecte complète au démarrage. Pendant ce
+temps :
+
+- `./deploy.sh logs scraper` affiche l'avancement organisme par organisme ;
+- le site **ne se synchronise pas** : `/api/sante` du backend signale la
+  collecte en cours, et le site reporte le rapatriement plutôt que de
+  rapatrier un catalogue à moitié écrit (les organismes pas encore scrapés
+  n'ont aucune session courante). Les passages reportés apparaissent en
+  « Reporté » dans Admin › Sources de données ;
+- une fois la collecte finie, la synchronisation part d'elle-même à la visite
+  suivante — ou tout de suite avec `./deploy.sh sync`.
+
+#### « Le site affiche 200 formations, le site de veille 3 900 sessions »
+
+Ce n'est pas une perte de données : les deux ne comptent pas la même chose. Une
+**formation** regroupe toutes ses dates et tous ses lieux, une **session** est
+une occurrence datée. Quelques centaines de formations pour quelques milliers
+de sessions est le rapport attendu. La page `/formations` affiche désormais les
+deux nombres, et Admin › Sources de données donne le total de sessions
+synchronisées, directement comparable au site de veille.
+
+#### Connexion impossible au back office du site
+
+Si l'identifiant est bon mais que la page de connexion revient en boucle, c'est
+le cookie qui n'est pas accepté. Le site ne marque le cookie `Secure` que si la
+requête arrive en HTTPS ; derrière un reverse proxy TLS qui ne pose pas
+`X-Forwarded-Proto`, régler `COOKIE_SECURE=1` dans `.env`. En accès HTTP direct
+sur le LAN, laisser à `0`.
+
+Les identifiants sont dans `.env` et réaffichables avec `./deploy.sh secrets`.
+
 ### Les trois services
 
 Image Ubuntu 24.04 pour les deux premiers (cron intégré, aucune dépendance

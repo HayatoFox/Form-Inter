@@ -69,6 +69,13 @@ services:
       # Jeton de /api/cron/sync. Vide = endpoint fermé (503).
       CRON_SECRET: "${CRON_SECRET:-}"
 
+      # Le cookie d'administration n'est marqué Secure que si la requête arrive
+      # en HTTPS (X-Forwarded-Proto d'un reverse proxy TLS). À forcer à 1
+      # seulement si le proxy ne pose pas cet en-tête : marqué Secure sur un
+      # accès HTTP en LAN, le navigateur refuse le cookie et la connexion
+      # échoue en boucle sans message.
+      COOKIE_SECURE: "${COOKIE_SECURE:-0}"
+
       # Liaison avec le backend. En mode "http" les deux conteneurs se parlent
       # par le réseau du compose : aucun fichier partagé, aucun souci de droits.
       BACKEND_MODE: "${BACKEND_MODE:-http}"
