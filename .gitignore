@@ -1,9 +1,6 @@
-__pycache__/
+# Base du backend de veille quand elle est montée à côté du site
+# (mode de liaison "sqlite" : ../data/formations.db).
 data/
-data-site/
-logs/
-.venv/
-vendor/
 
-# Secrets du déploiement Docker, engendrés par ./deploy.sh
-.env
+# Base propre au site quand il tourne en conteneur.
+data-site/
