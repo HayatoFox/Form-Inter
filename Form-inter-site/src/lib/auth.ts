@@ -16,3 +16,12 @@ export async function getCurrentAdmin() {
   if (!token) return null;
   return verifySessionToken(token);
 }
+
+// Les Server Actions du back office sont déjà couvertes par le proxy (elles
+// postent sur une URL /admin/*), mais celles qui manipulent la liaison backend
+// touchent un jeton et le réseau : elles revérifient la session elles-mêmes.
+export async function exigerAdmin() {
+  const admin = await getCurrentAdmin();
+  if (!admin) throw new Error("Non authentifié");
+  return admin;
+}

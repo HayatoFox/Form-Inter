@@ -170,6 +170,46 @@ connexion SQLite par requête, HTML rendu par fonctions Python +
   HMAC (secret persisté dans `data/.secret`, chmod 600), redirections
   relatives validées, mots de passe jamais dans les URLs.
 
+## 6 bis. Le site de consultation (`Form-inter-site/`)
+
+Second front, Next.js (App Router) + Prisma/SQLite, développé en parallèle du
+site stdlib : recherche publique par cartes/modales et back office propre. Il ne
+remplace pas `webapp/` — les deux lisent la même veille, `webapp/` restant
+l'outil interne complet (exports, santé des scrapers, scrape manuel, overrides).
+
+Il se remplit par **deux sources qui cohabitent** :
+
+- **import Excel/CSV** d'un fichier transmis par un organisme (assistant en
+  4 étapes : fichier → mapping des colonnes → aperçu → import) ;
+- **liaison dynamique avec ce backend**, en mode `http` (API JSON, §6) ou
+  `sqlite` (lecture seule de `data/formations.db` sur le même volume).
+
+Chaque ligne porte sa provenance (`source` = `MANUEL` | `BACKEND`) : la
+synchronisation ne touche jamais aux données manuelles, et un import ne modifie
+jamais une ligne rapatriée. La clé de rapprochement d'une session est la **clé
+naturelle** du backend (`organisme|formation|ville|date_debut|date_fin`), pas
+son id AUTOINCREMENT (qui change si la base est régénérée).
+
+Points structurants :
+
+- **Le modèle à plat du backend est éclaté** en Organisme / Centre / Domaine /
+  Formation / Session. Les entités sont rapprochées sans casse ni accents
+  (« Cepim » saisi à la main = « CEPIM » scrapé).
+- **Les sessions à entrée/sortie permanente** (dates NULL) sont reprises telles
+  quelles : `Session.dateDebut` est nullable côté site aussi.
+- **Dates calendaires à minuit UTC**, affichées en UTC : sans ça une date
+  importée à minuit local s'affiche la veille selon le fuseau.
+- **Garde-fous de synchronisation** : un lot vide ou une pagination tronquée
+  interrompent le passage plutôt que d'amputer le catalogue ; un verrou en base
+  (avec expiration) interdit deux passages simultanés.
+- **Miroir assumé** : une session du backend absente du lot est retirée du site.
+  C'est sans danger parce que l'offre courante est corrélée *par organisme* — un
+  scraper en échec continue de publier son relevé de la veille.
+- **Déclenchement** : bouton du back office, rafraîchissement automatique à la
+  visite quand le dernier passage dépasse la fraîcheur demandée (`after()` de
+  Next.js, le visiteur n'attend pas), ou `GET /api/cron/sync` avec
+  `CRON_SECRET` depuis un cron système.
+
 ## 7. Docker & déploiement
 
 Une seule image (`ubuntu:24.04` + python3 + cron + ca-certificates + tzdata),

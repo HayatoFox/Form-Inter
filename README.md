@@ -28,6 +28,38 @@ changer) ; via Docker : service `webapp` du compose (ci-dessous).
   mots de passe, cookies signés HMAC, CSRF sur tous les POST. Le port doit
   rester sur le LAN/VPN (pas de HTTPS intégré).
 
+### API JSON (`webapp/api.py`)
+
+Deux endpoints en lecture seule, destinés au site Next.js `Form-inter-site/`
+qui rapatrie le catalogue :
+
+| Endpoint | Contenu |
+|---|---|
+| `GET /api/sante` | nombre de sessions, d'organismes, date du dernier scrape |
+| `GET /api/sessions` | catalogue paginé (`page`, `par_page`, `passees=1`, `depuis=AAAA-MM-JJ`) |
+
+Ils publient la vue `sessions_effectives` (corrections du back office
+comprises) limitée à l'offre courante par organisme, et **excluent par défaut
+les sessions terminées**.
+
+Ces routes ne passent pas par le cookie de session mais par un jeton porteur :
+
+```bash
+curl -H "Authorization: Bearer $WEBAPP_API_TOKEN" http://localhost:8000/api/sante
+```
+
+**Tant que `WEBAPP_API_TOKEN` n'est pas défini, l'API répond 503** : rien ne
+s'ouvre par accident sur une installation existante.
+
+## Site de consultation (`Form-inter-site/`)
+
+Application Next.js + Prisma/SQLite, avec son propre back office. Elle se
+remplit par deux chemins qui cohabitent : l'import de fichiers Excel/CSV
+transmis par les organismes, et la liaison dynamique avec la base de ce dépôt —
+soit par l'API JSON ci-dessus, soit par lecture directe de
+`data/formations.db` quand les deux tournent sur la même machine. Voir
+[`Form-inter-site/README.md`](Form-inter-site/README.md).
+
 ## Lancement
 
 ```bash

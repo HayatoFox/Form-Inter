@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { BACKEND } from "@/lib/backend/types";
+import { formatDateCourt, formatPeriode } from "@/lib/dates";
 import {
   createSession,
   deleteFormation,
@@ -7,11 +9,25 @@ import {
   updateFormation,
 } from "../actions";
 
-const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
+function SourceBadge({ source }: { source: string }) {
+  const backend = source === BACKEND;
+  return (
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        backend
+          ? "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+          : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+      }`}
+      title={
+        backend
+          ? "Synchronisée depuis le backend de veille"
+          : "Saisie ou importée à la main"
+      }
+    >
+      {backend ? "Backend" : "Manuel"}
+    </span>
+  );
+}
 
 export default async function AdminFormationDetailPage({
   params,
@@ -26,7 +42,7 @@ export default async function AdminFormationDetailPage({
       include: {
         sessions: {
           include: { centre: true },
-          orderBy: { dateDebut: "asc" },
+          orderBy: { dateDebut: { sort: "asc", nulls: "last" } },
         },
       },
     }),
@@ -49,9 +65,20 @@ export default async function AdminFormationDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {formation.intitule}
-      </h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {formation.intitule}
+        </h1>
+        <SourceBadge source={formation.source} />
+      </div>
+
+      {formation.source === BACKEND && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-400">
+          Cette formation provient du backend de veille. Ses sessions
+          synchronisées sont réécrites à chaque passage : pour une correction
+          durable, passez par le back office du backend.
+        </p>
+      )}
 
       <form
         action={updateFormationWithId}
@@ -161,10 +188,16 @@ export default async function AdminFormationDetailPage({
                 key={s.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-200 px-4 py-2 text-sm dark:border-zinc-800"
               >
-                <span>
-                  {dateFormatter.format(s.dateDebut)}
-                  {s.dateFin ? ` → ${dateFormatter.format(s.dateFin)}` : ""}
+                <span className="flex flex-wrap items-center gap-2">
+                  <SourceBadge source={s.source} />
+                  {formatPeriode(s, formatDateCourt)}
                   {s.centre ? ` — ${s.centre.nom} (${s.centre.ville})` : ""}
+                  {s.tarif && (
+                    <span className="text-xs text-zinc-500">{s.tarif}</span>
+                  )}
+                  {s.placesInfo && (
+                    <span className="text-xs text-zinc-500">{s.placesInfo}</span>
+                  )}
                 </span>
                 <form action={deleteSessionAction}>
                   <button
@@ -193,9 +226,12 @@ export default async function AdminFormationDetailPage({
             <input
               name="dateDebut"
               type="date"
-              required
               className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
             />
+            <label className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
+              <input type="checkbox" name="permanente" />
+              Entrée/sortie permanente (offre ouverte en continu, sans dates)
+            </label>
           </div>
           <div>
             <label className="block text-xs font-medium text-zinc-500">
@@ -230,6 +266,26 @@ export default async function AdminFormationDetailPage({
             <input
               name="placesInfo"
               placeholder="ex: 8 places restantes"
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-500">
+              Tarif (optionnel)
+            </label>
+            <input
+              name="tarif"
+              placeholder="ex: 630 € HT / pers."
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-500">
+              Remarque (optionnel)
+            </label>
+            <input
+              name="remarque"
+              placeholder="ex: session ouverte toutes les semaines"
               className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
             />
           </div>

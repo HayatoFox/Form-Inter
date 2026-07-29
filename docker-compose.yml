@@ -23,6 +23,11 @@ services:
       # Premier compte admin, créé uniquement si aucun utilisateur n'existe
       WEBAPP_ADMIN_USER: "admin"
       WEBAPP_ADMIN_PASSWORD: "a-changer-des-la-premiere-connexion"
+      # Jeton de l'API JSON lue par le site Next.js (/api/sante, /api/sessions).
+      # Laissé vide, l'API reste fermée (503) : à renseigner uniquement si le
+      # site se branche en mode HTTP. Doit correspondre au jeton saisi dans
+      # Admin › Sources de données côté site.
+      WEBAPP_API_TOKEN: ""
     ports:
       - "8000:8000"        # à garder sur le LAN/VPN (pas de HTTPS intégré)
     volumes:

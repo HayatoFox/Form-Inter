@@ -130,7 +130,9 @@ class Handler(BaseHTTPRequestHandler):
             if route_methode != methode:
                 continue
 
-            if acces != "public":
+            # L'accès "api" ne passe pas par le cookie de session : la vue
+            # vérifie elle-même le jeton porteur (webapp/api.py).
+            if acces not in ("public", "api"):
                 req.utilisateur = auth.utilisateur_depuis_cookie(
                     req.conn, req.cookie_session)
                 if req.utilisateur is None:
@@ -146,6 +148,12 @@ class Handler(BaseHTTPRequestHandler):
                                         "Jeton de sécurité invalide — retournez en arrière et réessayez.")
             return vue(req, **m.groupdict())
 
+        if chemin.startswith("/api/"):
+            from .api import json_reponse
+            return json_reponse(
+                {"error": "Méthode non autorisée" if correspondance_chemin
+                          else "Endpoint inconnu"},
+                405 if correspondance_chemin else 404)
         if correspondance_chemin:
             return Reponse(405, b"Methode non autorisee",
                            [("Content-Type", "text/plain; charset=utf-8")])
@@ -174,9 +182,11 @@ def creer_serveur(port: int) -> ThreadingHTTPServer:
 
 
 # --- Table de routage (importée en fin de module : les vues importent Reponse)
-from . import vues_admin, vues_public  # noqa: E402
+from . import api, vues_admin, vues_public  # noqa: E402
 
 ROUTES = [
+    ("GET", re.compile(r"/api/sante"), api.vue_sante, "api"),
+    ("GET", re.compile(r"/api/sessions"), api.vue_sessions, "api"),
     ("GET", re.compile(r"/connexion"), vues_public.vue_connexion, "public"),
     ("POST", re.compile(r"/connexion"), vues_public.vue_connexion_post, "public"),
     ("GET", re.compile(r"/static/(?P<fichier>[A-Za-z0-9._-]+)"), vues_public.vue_static, "public"),

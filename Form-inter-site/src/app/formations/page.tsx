@@ -4,6 +4,8 @@ import { Prisma } from "@/generated/prisma/client";
 import { SearchFilters } from "@/components/SearchFilters";
 import { FormationCard } from "@/components/FormationCard";
 import { cleanupPastSessions } from "@/lib/session-cleanup";
+import { planifierSyncAuto } from "@/lib/backend/auto";
+import { debutDuJour, parseDateISO } from "@/lib/dates";
 
 const PAGE_SIZE = 20;
 
@@ -14,7 +16,11 @@ type SearchParams = {
   organisme?: string;
   dateFrom?: string;
   dateTo?: string;
+  passees?: string;
+  permanentes?: string;
   page?: string;
+  /** Marqueur de formulaire soumis : sans lui, les cases prennent leur défaut. */
+  f?: string;
 };
 
 export default async function FormationsPage({
@@ -23,6 +29,9 @@ export default async function FormationsPage({
   searchParams: Promise<SearchParams>;
 }) {
   await cleanupPastSessions();
+  // Rafraîchit le catalogue depuis le backend quand le dernier passage est
+  // périmé. Le travail est renvoyé après la réponse : la page ne l'attend pas.
+  await planifierSyncAuto();
 
   const params = await searchParams;
   const q = params.q?.trim() || undefined;
@@ -31,28 +40,59 @@ export default async function FormationsPage({
   const organismeId = params.organisme || undefined;
   const dateFrom = params.dateFrom || undefined;
   const dateTo = params.dateTo || undefined;
+  const soumis = params.f === "1";
+  const passees = soumis && params.passees === "1";
+  const permanentes = soumis ? params.permanentes === "1" : true;
   const page = Math.max(1, Number(params.page) || 1);
 
-  const sessionFilter: Prisma.SessionWhereInput = {};
-  if (ville) sessionFilter.centre = { ville: { contains: ville } };
-  if (dateFrom || dateTo) {
-    sessionFilter.dateDebut = {
-      ...(dateFrom && { gte: new Date(dateFrom) }),
-      ...(dateTo && { lte: new Date(`${dateTo}T23:59:59`) }),
-    };
+  const aujourdhui = debutDuJour();
+
+  // Contraintes portant sur les sessions datées. Les sessions à entrée/sortie
+  // permanente (dateDebut nulle) n'y sont pas soumises : elles sont incluses ou
+  // exclues en bloc.
+  const contraintesDatees: Prisma.SessionWhereInput[] = [];
+  if (!passees) {
+    contraintesDatees.push({
+      OR: [
+        { dateFin: { gte: aujourdhui } },
+        { dateFin: null, dateDebut: { gte: aujourdhui } },
+      ],
+    });
   }
-  const hasSessionFilter = Object.keys(sessionFilter).length > 0;
+  const borneDu = parseDateISO(dateFrom);
+  const borneAu = parseDateISO(dateTo);
+  if (borneDu) contraintesDatees.push({ dateDebut: { gte: borneDu } });
+  if (borneAu) contraintesDatees.push({ dateDebut: { lte: borneAu } });
+
+  const conditionsSession: Prisma.SessionWhereInput[] = [];
+  if (ville) conditionsSession.push({ centre: { ville: { contains: ville } } });
+
+  if (contraintesDatees.length > 0) {
+    const datees: Prisma.SessionWhereInput = {
+      AND: [{ dateDebut: { not: null } }, ...contraintesDatees],
+    };
+    conditionsSession.push(
+      permanentes ? { OR: [{ dateDebut: null }, datees] } : datees
+    );
+  } else if (!permanentes) {
+    conditionsSession.push({ dateDebut: { not: null } });
+  }
+
+  const sessionFilter: Prisma.SessionWhereInput | undefined =
+    conditionsSession.length > 0 ? { AND: conditionsSession } : undefined;
+
+  // Les cartes ne parlent de « sessions correspondantes » que si le visiteur a
+  // lui-même restreint la recherche : la borne « à venir » posée par défaut
+  // n'est pas un filtre de sa part.
+  const filtreExplicite = Boolean(ville || dateFrom || dateTo || soumis);
 
   const where: Prisma.FormationWhereInput = {
     ...(domaineId && { domaineId }),
     ...(organismeId && { organismeId }),
     ...(q && {
-      OR: [
-        { intitule: { contains: q } },
-        { description: { contains: q } },
-      ],
+      OR: [{ intitule: { contains: q } }, { description: { contains: q } }],
     }),
-    ...(hasSessionFilter && { sessions: { some: sessionFilter } }),
+    ...(sessionFilter && { sessions: { some: sessionFilter } }),
   };
 
   const [domaines, organismes, villesRaw, total, formations] = await Promise.all([
@@ -70,9 +110,9 @@ export default async function FormationsPage({
         organisme: true,
         domaine: true,
         sessions: {
-          where: hasSessionFilter ? sessionFilter : undefined,
+          where: sessionFilter,
           include: { centre: true },
-          orderBy: { dateDebut: "asc" },
+          orderBy: { dateDebut: { sort: "asc", nulls: "last" } },
         },
       },
       orderBy: { intitule: "asc" },
@@ -92,6 +132,9 @@ export default async function FormationsPage({
     if (organismeId) sp.set("organisme", organismeId);
     if (dateFrom) sp.set("dateFrom", dateFrom);
     if (dateTo) sp.set("dateTo", dateTo);
+    sp.set("f", "1");
+    if (passees) sp.set("passees", "1");
+    if (permanentes) sp.set("permanentes", "1");
     sp.set("page", String(p));
     return `/formations?${sp.toString()}`;
   }
@@ -116,6 +159,8 @@ export default async function FormationsPage({
           organisme: organismeId,
           dateFrom,
           dateTo,
+          passees,
+          permanentes,
         }}
       />
 
@@ -129,7 +174,7 @@ export default async function FormationsPage({
             <FormationCard
               key={f.id}
               formation={f}
-              sessionsFiltered={hasSessionFilter}
+              sessionsFiltered={filtreExplicite}
             />
           ))}
         </div>

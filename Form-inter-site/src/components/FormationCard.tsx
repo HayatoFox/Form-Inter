@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Prisma } from "@/generated/prisma/client";
 import { SessionsModal } from "@/components/SessionsModal";
+import { debutDuJour, formatDateCourt } from "@/lib/dates";
 
 export type FormationWithRelations = Prisma.FormationGetPayload<{
   include: {
@@ -12,17 +13,26 @@ export type FormationWithRelations = Prisma.FormationGetPayload<{
   };
 }>;
 
+export type SessionWithCentre = FormationWithRelations["sessions"][number];
+
 function formatDuree(f: FormationWithRelations) {
   if (!f.dureeValeur) return null;
   const unite = f.dureeUnite ?? "";
   return `${f.dureeValeur} ${unite}`.trim();
 }
 
-const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
+// Les sessions à entrée/sortie permanente n'ont pas de date : elles passent
+// après les sessions datées, dans l'ordre d'affichage comme dans le tri.
+export function trierSessions(
+  sessions: SessionWithCentre[]
+): SessionWithCentre[] {
+  return [...sessions].sort((a, b) => {
+    if (!a.dateDebut && !b.dateDebut) return 0;
+    if (!a.dateDebut) return 1;
+    if (!b.dateDebut) return -1;
+    return a.dateDebut.getTime() - b.dateDebut.getTime();
+  });
+}
 
 export function FormationCard({
   formation,
@@ -34,15 +44,15 @@ export function FormationCard({
   const [open, setOpen] = useState(false);
   const duree = formatDuree(formation);
 
-  const sortedSessions = [...formation.sessions].sort(
-    (a, b) => a.dateDebut.getTime() - b.dateDebut.getTime()
-  );
+  const sortedSessions = trierSessions(formation.sessions);
   // Hors recherche filtrée, on ne met en avant que les sessions à venir ;
   // avec des filtres actifs, la session la plus proche du résultat suffit,
   // même passée, puisque l'utilisateur a explicitement ciblé cette période.
+  const aujourdhui = debutDuJour();
   const previewSession = sessionsFiltered
     ? sortedSessions[0]
-    : sortedSessions.find((s) => s.dateDebut >= new Date());
+    : (sortedSessions.find((s) => s.dateDebut && s.dateDebut >= aujourdhui) ??
+      sortedSessions.find((s) => !s.dateDebut));
 
   return (
     <>
@@ -76,11 +86,15 @@ export function FormationCard({
           )}
           {previewSession && (
             <span>
-              {sessionsFiltered ? "Session la plus proche" : "Prochaine session"}{" "}
-              : {dateFormatter.format(previewSession.dateDebut)}
+              {!previewSession.dateDebut
+                ? "Entrée/sortie permanente"
+                : `${
+                    sessionsFiltered ? "Session la plus proche" : "Prochaine session"
+                  } : ${formatDateCourt(previewSession.dateDebut)}`}
               {previewSession.centre ? ` — ${previewSession.centre.ville}` : ""}
             </span>
           )}
+          {previewSession?.tarif && <span>{previewSession.tarif}</span>}
           {!previewSession && sortedSessions.length === 0 && (
             <span>Aucune session planifiée</span>
           )}
