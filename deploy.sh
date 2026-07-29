@@ -40,9 +40,27 @@ echec()  { printf '%serreur :%s %s\n' "$ROUGE" "$FIN" "$*" >&2; exit 1; }
 
 COMPOSE=""
 
+MACOS=0
+[ "$(uname -s)" = "Darwin" ] && MACOS=1
+
 verifier_docker() {
     command -v docker >/dev/null 2>&1 \
         || echec "Docker n'est pas installé. Voir https://docs.docker.com/get-docker/"
+
+    # Sur macOS, Docker Desktop tourne sous le compte de l'utilisateur : sudo
+    # ne donne aucun droit supplémentaire au démon — c'est lui qui crée les
+    # montages — et laisse derrière lui des fichiers appartenant à root que le
+    # lancement normal suivant ne saura plus lire (à commencer par .env).
+    if [ "$MACOS" = 1 ] && [ "$(id -u)" = "0" ]; then
+        echec \
+"Ne lancez pas ce script avec sudo sur macOS.
+  Docker Desktop tourne sous votre compte : sudo ne lui donne aucun droit de
+  plus, et laisse des fichiers root dans le projet.
+
+  Si un lancement en sudo a déjà eu lieu, rendez-vous les fichiers :
+      sudo chown -R \"\$(id -un)\" \"$RACINE\"
+  puis relancez simplement :  ./deploy.sh"
+    fi
 
     docker info >/dev/null 2>&1 || echec \
 "Le démon Docker ne répond pas.
@@ -117,6 +135,12 @@ ENTETE
     poser_defaut SESSION_SECRET           "$(aleatoire 32)"
     poser_defaut CRON_SECRET              "$(aleatoire 32)"
 
+    # Emplacement des données sur l'hôte. Déplaçables hors du projet quand le
+    # dossier n'est pas partageable avec Docker (voir diagnostiquer_montage).
+    poser_defaut DATA_DIR                 "./data"
+    poser_defaut LOGS_DIR                 "./logs"
+    poser_defaut SITE_DATA_DIR            "./data-site"
+
     # Liaison site <- backend
     poser_defaut BACKEND_MODE             "http"
     poser_defaut BACKEND_AUTO_SYNC        "1"
@@ -178,15 +202,71 @@ resume() {
     info "  Ces ports n'ont pas de HTTPS : à garder sur le LAN ou le VPN."
 }
 
+# Docker Desktop refuse de monter un dossier qu'il n'a pas le droit de lire.
+# Sur macOS c'est le cas par défaut de ~/Documents, ~/Desktop et ~/Downloads,
+# protégés par TCC : Docker ne voit pas le dossier, croit devoir le créer, et
+# échoue sur « operation not permitted ». Le message brut n'oriente vers rien,
+# d'où cette relecture.
+diagnostiquer_montage() {
+    local journal="$1"
+    grep -qiE "creating mount source path|operation not permitted|not shared from the host" \
+        "$journal" 2>/dev/null || return 1
+
+    printf '\n'
+    avert "Docker n'arrive pas à monter un dossier de l'hôte."
+    if [ "$MACOS" = 1 ]; then
+        cat >&2 <<AIDE
+
+  Sur macOS, les dossiers Documents, Bureau et Téléchargements sont protégés :
+  Docker Desktop doit y être explicitement autorisé.
+
+  1. Réglages système › Confidentialité et sécurité › Fichiers et dossiers
+     → activer « Dossier Documents » pour Docker
+     (ou Accès complet au disque › Docker), puis redémarrer Docker Desktop.
+
+  2. Vérifier aussi Docker Desktop › Settings › Resources › File sharing :
+     /Users doit y figurer.
+
+  Si la politique de la machine interdit ces autorisations, sortez les données
+  du dossier protégé — sans déplacer le dépôt — en réglant dans .env :
+
+      DATA_DIR=$HOME/form-inter/data
+      LOGS_DIR=$HOME/form-inter/logs
+      SITE_DATA_DIR=$HOME/form-inter/data-site
+
+  puis relancez ./deploy.sh
+AIDE
+    else
+        cat >&2 <<AIDE
+
+  Vérifiez les droits sur $RACINE, ou déplacez les données en réglant
+  DATA_DIR, LOGS_DIR et SITE_DATA_DIR dans .env.
+AIDE
+    fi
+    return 0
+}
+
 commande_up() {
     verifier_docker
     preparer_env
 
-    mkdir -p data logs data-site
+    local rep
+    for rep in "$(valeur_env DATA_DIR)" "$(valeur_env LOGS_DIR)" "$(valeur_env SITE_DATA_DIR)"; do
+        mkdir -p "$rep" 2>/dev/null || echec \
+            "Impossible de créer $rep — vérifiez les droits, ou changez DATA_DIR / LOGS_DIR / SITE_DATA_DIR dans .env."
+    done
 
     etape "Construction et démarrage des images"
     info "La première construction du site prend plusieurs minutes (npm + build Next)."
-    $COMPOSE up -d --build
+
+    local journal
+    journal="$(mktemp)"
+    if ! $COMPOSE up -d --build 2>&1 | tee "$journal"; then
+        diagnostiquer_montage "$journal" || true
+        rm -f "$journal"
+        exit 1
+    fi
+    rm -f "$journal"
 
     etape "Attente des services"
     attendre_sante scrap-webapp "site interne " || true

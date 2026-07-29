@@ -102,6 +102,44 @@ Next.js) et nécessite un accès réseau sortant vers le registre npm,
 `cdn.sheetjs.com` (la dépendance `xlsx`) et GitHub (binaires précompilés de
 `better-sqlite3`).
 
+#### Ne pas lancer le script avec `sudo` sur macOS
+
+Docker Desktop tourne sous votre compte : c'est **son** démon qui crée les
+montages, `sudo` ne lui donne aucun droit supplémentaire. En revanche il laisse
+dans le projet des fichiers appartenant à root — à commencer par `.env` en
+chmod 600 — que le lancement normal suivant ne saura plus lire. Le script
+refuse désormais de démarrer en root sur macOS. Si c'est déjà arrivé :
+
+```bash
+sudo chown -R "$(id -un)" .
+./deploy.sh
+```
+
+Sur Linux, `sudo` reste légitime si votre compte n'est pas dans le groupe
+`docker`.
+
+#### « error while creating mount source path … operation not permitted »
+
+macOS protège `~/Documents`, `~/Bureau` et `~/Téléchargements` : Docker Desktop
+n'y a pas accès tant qu'il n'y est pas autorisé, ne *voit* donc pas le dossier,
+croit devoir le créer et échoue. Deux issues :
+
+1. Réglages système › Confidentialité et sécurité › **Fichiers et dossiers** →
+   activer « Dossier Documents » pour Docker (ou Accès complet au disque), puis
+   redémarrer Docker Desktop. Vérifier aussi que `/Users` figure dans Docker
+   Desktop › Settings › Resources › **File sharing**.
+2. Si la machine interdit ces autorisations, sortir les données du dossier
+   protégé **sans déplacer le dépôt**, en réglant dans `.env` :
+
+   ```
+   DATA_DIR=$HOME/form-inter/data
+   LOGS_DIR=$HOME/form-inter/logs
+   SITE_DATA_DIR=$HOME/form-inter/data-site
+   ```
+
+`./deploy.sh` relit la sortie de Docker et affiche cette marche à suivre
+lui-même quand il reconnaît l'erreur.
+
 ### Les trois services
 
 Image Ubuntu 24.04 pour les deux premiers (cron intégré, aucune dépendance

@@ -14,8 +14,11 @@ services:
       # Mettre à 0 pour ne pas scraper au démarrage du conteneur
       SCRAPE_AT_STARTUP: "${SCRAPE_AT_STARTUP:-1}"
     volumes:
-      - ./data:/app/data   # la BDD SQLite reste accessible sur l'hôte
-      - ./logs:/app/logs
+      # La BDD SQLite reste accessible sur l'hôte. DATA_DIR/LOGS_DIR permettent
+      # de sortir les données d'un dossier que Docker n'a pas le droit de lire
+      # (macOS : ~/Documents, ~/Bureau et ~/Téléchargements sont protégés).
+      - "${DATA_DIR:-./data}:/app/data"
+      - "${LOGS_DIR:-./logs}:/app/logs"
 
   webapp:
     build: .
@@ -33,8 +36,8 @@ services:
     ports:
       - "${WEBAPP_PORT:-8000}:8000"   # à garder sur le LAN/VPN (pas de HTTPS intégré)
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - "${DATA_DIR:-./data}:/app/data"
+      - "${LOGS_DIR:-./logs}:/app/logs"
     healthcheck:
       # /connexion est la seule page publique : elle répond sans jeton.
       test: ["CMD", "python3", "-c",
@@ -83,8 +86,8 @@ services:
     ports:
       - "${SITE_PORT:-3000}:3000"
     volumes:
-      - ./data-site:/app/site/data
-      # - ./data:/app/data
+      - "${SITE_DATA_DIR:-./data-site}:/app/site/data"
+      # - "${DATA_DIR:-./data}:/app/data"
     healthcheck:
       test: ["CMD", "node", "-e",
              "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
