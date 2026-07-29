@@ -174,7 +174,8 @@ resume() {
     printf '\n  %sSite interne (veille)%s http://localhost:%s\n' "$GRAS" "$FIN" "${port_webapp:-8000}"
     printf '    identifiants          %s / %s\n' \
         "$(valeur_env WEBAPP_ADMIN_USER)" "$(valeur_env WEBAPP_ADMIN_PASSWORD)"
-    printf '\n  Ces ports n%'"'"'ont pas de HTTPS : à garder sur le LAN ou le VPN.\n'
+    printf '\n'
+    info "  Ces ports n'ont pas de HTTPS : à garder sur le LAN ou le VPN."
 }
 
 commande_up() {
@@ -195,8 +196,8 @@ commande_up() {
         etape "Collecte initiale en cours"
         info "Les cinq organismes sont scrapés en arrière-plan (~10 à 15 min)."
         info "Suivre : ./deploy.sh logs scraper"
-        info "Le site se remplira à la synchronisation suivante, ou tout de"
-        info "suite avec : ./deploy.sh sync"
+        info "Le site se remplira à la synchronisation suivante — ou tout de suite"
+        info "une fois la collecte terminée, avec : ./deploy.sh sync"
     fi
 
     resume
@@ -243,8 +244,10 @@ commande_secrets() {
     resume
 }
 
+# Le bandeau de commentaires en tête de ce fichier fait office d'aide :
+# on le réimprime jusqu'à la première ligne de code.
 usage() {
-    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+    awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"
 }
 
 # --- Aiguillage --------------------------------------------------------------
