@@ -1,0 +1,141 @@
+import Link from "next/link";
+
+export type SearchFiltersProps = {
+  domaines: { id: string; nom: string }[];
+  organismes: { id: string; nom: string }[];
+  villes: string[];
+  current: {
+    q?: string;
+    domaine?: string;
+    organisme?: string;
+    ville?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  };
+};
+
+export function SearchFilters({
+  domaines,
+  organismes,
+  villes,
+  current,
+}: SearchFiltersProps) {
+  return (
+    <form
+      method="get"
+      action="/formations"
+      className="grid grid-cols-1 gap-4 rounded-lg border border-zinc-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-6 lg:items-end dark:border-zinc-800 dark:bg-zinc-900"
+    >
+      <div className="lg:col-span-2">
+        <label htmlFor="q" className="block text-xs font-medium text-zinc-500">
+          Mot-clé
+        </label>
+        <input
+          id="q"
+          name="q"
+          type="text"
+          defaultValue={current.q}
+          placeholder="Intitulé, description…"
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="domaine" className="block text-xs font-medium text-zinc-500">
+          Domaine
+        </label>
+        <select
+          id="domaine"
+          name="domaine"
+          defaultValue={current.domaine ?? ""}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+        >
+          <option value="">Tous</option>
+          {domaines.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.nom}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="ville" className="block text-xs font-medium text-zinc-500">
+          Ville
+        </label>
+        <select
+          id="ville"
+          name="ville"
+          defaultValue={current.ville ?? ""}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+        >
+          <option value="">Toutes</option>
+          {villes.map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="organisme" className="block text-xs font-medium text-zinc-500">
+          Organisme
+        </label>
+        <select
+          id="organisme"
+          name="organisme"
+          defaultValue={current.organisme ?? ""}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+        >
+          <option value="">Tous</option>
+          {organismes.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.nom}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="dateFrom" className="block text-xs font-medium text-zinc-500">
+          Du
+        </label>
+        <input
+          id="dateFrom"
+          name="dateFrom"
+          type="date"
+          defaultValue={current.dateFrom}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+        />
+      </div>
+
+      <div className="flex items-end gap-2 lg:col-span-6">
+        <div className="flex-1">
+          <label htmlFor="dateTo" className="block text-xs font-medium text-zinc-500">
+            Au
+          </label>
+          <input
+            id="dateTo"
+            name="dateTo"
+            type="date"
+            defaultValue={current.dateTo}
+            className="mt-1 w-full max-w-[200px] rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+          />
+        </div>
+        <button
+          type="submit"
+          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        >
+          Filtrer
+        </button>
+        <Link
+          href="/formations"
+          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          Réinitialiser
+        </Link>
+      </div>
+    </form>
+  );
+}

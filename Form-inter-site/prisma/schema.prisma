@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Organisme {
+  id         String      @id @default(cuid())
+  nom        String      @unique
+  siteWeb    String?
+  telephone  String?
+  email      String?
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  centres    Centre[]
+  formations Formation[]
+}
+
+model Centre {
+  id          String    @id @default(cuid())
+  nom         String
+  ville       String
+  codePostal  String?
+  adresse     String?
+  organisme   Organisme @relation(fields: [organismeId], references: [id], onDelete: Cascade)
+  organismeId String
+  sessions    Session[]
+
+  @@unique([organismeId, nom])
+  @@index([ville])
+  @@index([organismeId])
+}
+
+model Domaine {
+  id         String      @id @default(cuid())
+  nom        String      @unique
+  formations Formation[]
+}
+
+model Formation {
+  id          String    @id @default(cuid())
+  intitule    String
+  description String?
+  dureeValeur Float?
+  dureeUnite  String?
+  organisme   Organisme @relation(fields: [organismeId], references: [id], onDelete: Cascade)
+  organismeId String
+  domaine     Domaine?  @relation(fields: [domaineId], references: [id])
+  domaineId   String?
+  sessions    Session[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([organismeId, intitule])
+  @@index([organismeId])
+  @@index([domaineId])
+}
+
+model Session {
+  id          String    @id @default(cuid())
+  formation   Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  formationId String
+  centre      Centre?   @relation(fields: [centreId], references: [id])
+  centreId    String?
+  dateDebut   DateTime
+  dateFin     DateTime?
+  placesInfo  String?
+
+  @@index([formationId])
+  @@index([centreId])
+  @@index([dateDebut])
+}
+
+model AdminUser {
+  id           String @id @default(cuid())
+  email        String @unique
+  passwordHash String
+}
