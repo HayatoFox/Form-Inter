@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { debutDuJour, formatDateLong, formatPeriode } from "@/lib/dates";
 import { BACKEND } from "@/lib/backend/types";
 
+export const dynamic = "force-dynamic";
+
 type SessionAffichee = {
   id: string;
   dateDebut: Date | null;

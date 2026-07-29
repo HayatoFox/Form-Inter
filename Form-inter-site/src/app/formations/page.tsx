@@ -7,6 +7,11 @@ import { cleanupPastSessions } from "@/lib/session-cleanup";
 import { planifierSyncAuto } from "@/lib/backend/auto";
 import { debutDuJour, parseDateISO } from "@/lib/dates";
 
+// Le catalogue bouge à chaque synchronisation, et la page nettoie les sessions
+// manuelles périmées à l'affichage : rien à préparer au build — où il n'y a de
+// toute façon pas de base à interroger (construction de l'image Docker).
+export const dynamic = "force-dynamic";
+
 const PAGE_SIZE = 20;
 
 type SearchParams = {

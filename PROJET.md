@@ -212,19 +212,43 @@ Points structurants :
 
 ## 7. Docker & déploiement
 
-Une seule image (`ubuntu:24.04` + python3 + cron + ca-certificates + tzdata),
-deux services dans `docker-compose.yml` :
+Trois services dans `docker-compose.yml`, sur deux images :
 
-- **`scraper`** : cron intégré (`CRON_SCHEDULE`, défaut 6 h) + scrape au
-  démarrage (`SCRAPE_AT_STARTUP=0` pour désactiver).
-- **`webapp`** : `command: ["webapp"]`, port 8000. Définir
+- **`scraper`** (`ubuntu:24.04` + python3 + cron) : cron intégré
+  (`CRON_SCHEDULE`, défaut 6 h) + scrape au démarrage (`SCRAPE_AT_STARTUP=0`
+  pour désactiver).
+- **`webapp`** : même image, `command: ["webapp"]`, port 8000. Définir
   `WEBAPP_ADMIN_USER`/`WEBAPP_ADMIN_PASSWORD` avant le premier lancement.
+- **`site`** (`node:22-bookworm-slim`) : le site de consultation, port 3000.
+  Migrations Prisma et compte admin au premier démarrage
+  (`Form-inter-site/docker-entrypoint.sh`).
 
-Volumes partagés `./data` + `./logs` (bind mounts, uid 1000 = utilisateur
-`ubuntu` du conteneur). **Jamais `./data` sur NFS/CIFS** (verrous SQLite).
-Port 8000 à garder sur le LAN/VPN (pas de HTTPS intégré ; reverse proxy si
-exposition plus large). `docker-entrypoint.sh` : modes `cron` / `scrape` /
-`webapp`.
+`./deploy.sh` est le point d'entrée (Linux et macOS) : vérification de Docker,
+engendrement des secrets dans `.env` au premier lancement — jamais réécrits
+ensuite —, construction, démarrage, attente des healthchecks, affichage des
+identifiants. Sous-commandes `status` / `logs` / `sync` / `scrape` / `secrets`
+/ `stop` / `down`. Écrit pour le bash 3.2 de macOS (pas de tableaux associatifs,
+pas de `sed -i`).
+
+Volumes en bind mount : `./data` + `./logs` (uid 1000 = utilisateur `ubuntu`
+du conteneur) pour la veille, `./data-site` pour la base propre au site.
+**Jamais `./data` sur NFS/CIFS** (verrous SQLite). Ports 8000 et 3000 à garder
+sur le LAN/VPN (pas de HTTPS intégré ; reverse proxy si exposition plus large).
+`docker-entrypoint.sh` du backend : modes `cron` / `scrape` / `webapp`.
+
+**Le site parle au backend par HTTP** (`BACKEND_MODE=http`,
+`http://webapp:8000`) plutôt que par le fichier partagé : ça évite de faire
+cohabiter les verrous WAL de SQLite entre deux conteneurs, et surtout le
+mélange de propriétaires sur les fichiers `-wal`/`-shm` (le scraper tourne en
+uid 1000, le site en root). Le mode `sqlite` reste disponible en décommentant
+le montage de `./data` sur le service `site`.
+
+**L'image du site est volontairement en une seule étape**, sans
+`output: "standalone"` : le site embarque un module natif (better-sqlite3) et
+un client Prisma généré hors dépôt, que le traçage de fichiers de Next gère
+mal. Corollaire côté code : toutes les pages qui lisent la base sont en
+`force-dynamic` — sans ça, Next les prérend pendant `next build`, où aucune
+base n'existe encore dans l'image.
 
 ## 8. Exploitation courante
 

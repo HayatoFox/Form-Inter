@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+// La liste bouge à chaque synchronisation : rien à préparer au build — et il
+// n'y a de toute façon pas de base à interroger au moment de construire
+// l'image Docker.
+export const dynamic = "force-dynamic";
+
 export default async function OrganismesPage() {
   const organismes = await prisma.organisme.findMany({
     orderBy: { nom: "asc" },

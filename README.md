@@ -72,24 +72,64 @@ Aucune dépendance externe : bibliothèque standard Python uniquement
 
 ## Docker (recommandé)
 
-Image basée sur Ubuntu 24.04 (noble), cron intégré, aucune dépendance Python.
+### En une commande — `./deploy.sh`
+
+Script de déploiement pour **Linux et macOS** : il vérifie Docker, engendre les
+mots de passe et jetons dans `.env` au premier lancement, construit les images,
+démarre les trois services, attend qu'ils répondent et affiche les
+identifiants.
 
 ```bash
-docker compose up -d --build
+./deploy.sh
 ```
 
-Deux services sur la même image : `scraper` (cron quotidien 6 h, modifiable
-via `CRON_SCHEDULE` ; `SCRAPE_AT_STARTUP: "0"` désactive le passage initial)
-et `webapp` (site interne sur le port 8000 — définir
-`WEBAPP_ADMIN_USER`/`WEBAPP_ADMIN_PASSWORD` avant le premier lancement).
-La BDD et les logs sont montés depuis l'hôte (`./data`, `./logs`).
-Attention : `./data` ne doit jamais être sur NFS/CIFS (verrous SQLite).
-Les passages sont visibles via `docker logs scrap-formations`.
+| Commande | Effet |
+|---|---|
+| `./deploy.sh` | démarre tout (construit les images si besoin) |
+| `./deploy.sh status` | état des trois services |
+| `./deploy.sh logs [svc]` | journaux en continu (`scraper`, `webapp`, `site`) |
+| `./deploy.sh sync` | force une synchronisation site ← backend |
+| `./deploy.sh scrape` | lance un passage de collecte immédiat |
+| `./deploy.sh secrets` | réaffiche les URL et identifiants |
+| `./deploy.sh stop` / `down` | arrête (les données restent dans `./data`, `./data-site`) |
 
-Passage unique sans le service :
+Les secrets ne sont **jamais réécrits** : `.env` est la mémoire de
+l'installation, à sauvegarder. `.env.example` liste tout ce qui est réglable
+(ports, planification, mode de liaison).
+
+La première construction prend plusieurs minutes (installation npm et build
+Next.js) et nécessite un accès réseau sortant vers le registre npm,
+`cdn.sheetjs.com` (la dépendance `xlsx`) et GitHub (binaires précompilés de
+`better-sqlite3`).
+
+### Les trois services
+
+Image Ubuntu 24.04 pour les deux premiers (cron intégré, aucune dépendance
+Python), image Node 22 pour le site.
+
+| Service | Conteneur | Port | Rôle |
+|---|---|---|---|
+| `scraper` | `scrap-formations` | — | collecte quotidienne (`CRON_SCHEDULE`, défaut 6 h ; `SCRAPE_AT_STARTUP=0` désactive le passage initial) |
+| `webapp` | `scrap-webapp` | 8000 | site interne de veille + API JSON |
+| `site` | `scrap-site` | 3000 | site de consultation Next.js |
+
+Le site interroge le backend par le réseau du compose
+(`BACKEND_MODE=http`, `http://webapp:8000`) : aucun fichier partagé entre eux,
+donc aucun verrou SQLite à faire cohabiter entre conteneurs. Pour lire
+directement la base à la place, passer `BACKEND_MODE=sqlite` dans `.env` et
+décommenter le montage de `./data` sur le service `site`.
+
+La BDD de veille et les logs sont montés depuis l'hôte (`./data`, `./logs`),
+la base propre au site dans `./data-site`. Attention : `./data` ne doit jamais
+être sur NFS/CIFS (verrous SQLite). Ces ports n'ont pas de HTTPS : à garder sur
+le LAN ou le VPN.
+
+### Sans le script
 
 ```bash
-docker compose run --rm scraper scrape
+cp .env.example .env   # puis renseigner mots de passe et secrets
+docker compose up -d --build
+docker compose run --rm scraper scrape   # passage unique
 ```
 
 Le scrape s'exécute sous l'utilisateur `ubuntu` (uid 1000) du conteneur :
