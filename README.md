@@ -195,6 +195,40 @@ la base propre au site dans `./data-site`. Attention : `./data` ne doit jamais
 être sur NFS/CIFS (verrous SQLite). Ces ports n'ont pas de HTTPS : à garder sur
 le LAN ou le VPN.
 
+### Exposer le site sur un domaine (Apache déjà en place)
+
+Le serveur utilise Apache comme reverse proxy : l'hôte virtuel prêt à l'emploi
+est dans [`apache/forminter.conf`](apache/forminter.conf) (forminter.proinsec.com
+→ conteneur du site, port 3000).
+
+```bash
+sudo a2enmod proxy proxy_http headers ssl
+sudo cp apache/forminter.conf /etc/apache2/sites-available/forminter.conf
+sudo a2ensite forminter
+sudo apachectl configtest && sudo systemctl reload apache2
+
+# Certificat (remplit le bloc :443 tout seul)
+sudo certbot --apache -d forminter.proinsec.com
+```
+
+Deux directives de cette conf sont **indispensables**, leur absence donne des
+pannes silencieuses :
+
+- `ProxyPreserveHost On` — Next.js vérifie que l'origine des formulaires du
+  back office correspond à l'hôte : sans elle, tous les POST sont rejetés ;
+- `RequestHeader set X-Forwarded-Proto "https"` — c'est cet en-tête qui fait
+  passer le cookie d'administration en `Secure`.
+
+Une fois le proxy en service, restreindre le port du site à la boucle locale
+dans `.env`, puis relancer :
+
+```
+SITE_BIND=127.0.0.1
+```
+
+Le site interne de veille (port 8000) reste volontairement hors du proxy, sur
+le LAN/VPN.
+
 ### Sans le script
 
 ```bash

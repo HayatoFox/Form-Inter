@@ -251,6 +251,15 @@ du conteneur) pour la veille, `./data-site` pour la base propre au site.
 sur le LAN/VPN (pas de HTTPS intégré ; reverse proxy si exposition plus large).
 `docker-entrypoint.sh` du backend : modes `cron` / `scrape` / `webapp`.
 
+**Exposition publique** : forminter.proinsec.com est servi par l'Apache déjà
+en place sur le serveur (pas de proxy conteneurisé) — hôte virtuel versionné
+dans `apache/forminter.conf`, certificat via certbot. Deux directives y sont
+vitales : `ProxyPreserveHost On` (sans elle Next.js rejette les POST des
+actions serveur, contrôle d'origine oblige) et `RequestHeader set
+X-Forwarded-Proto "https"` (c'est lui qui fait passer le cookie admin en
+Secure). Derrière le proxy, `SITE_BIND=127.0.0.1` retire le port 3000 du
+réseau. Le port 8000 (veille) reste volontairement hors proxy, sur le LAN/VPN.
+
 **Le site parle au backend par HTTP** (`BACKEND_MODE=http`,
 `http://webapp:8000`) plutôt que par le fichier partagé : ça évite de faire
 cohabiter les verrous WAL de SQLite entre deux conteneurs, et surtout le

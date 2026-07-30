@@ -91,7 +91,10 @@ services:
       # au cas où le réseau entre conteneurs pose problème : le mode http
       # évite tout partage de verrous SQLite entre conteneurs.
     ports:
-      - "${SITE_PORT:-3000}:3000"
+      # SITE_BIND=127.0.0.1 quand un reverse proxy (Apache…) tourne sur la même
+      # machine : le port 3000 n'est alors joignable que par le proxy, pas
+      # depuis le réseau.
+      - "${SITE_BIND:-0.0.0.0}:${SITE_PORT:-3000}:3000"
     volumes:
       - "${SITE_DATA_DIR:-./data-site}:/app/site/data"
       # - "${DATA_DIR:-./data}:/app/data"
