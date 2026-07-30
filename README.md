@@ -205,19 +205,25 @@ est dans [`apache/forminter.conf`](apache/forminter.conf) (forminter.proinsec.co
 sudo a2enmod proxy proxy_http headers ssl
 sudo cp apache/forminter.conf /etc/apache2/sites-available/forminter.conf
 sudo a2ensite forminter
-sudo apachectl configtest && sudo systemctl reload apache2
+sudo apachectl configtest && sudo systemctl restart apache2
 
-# Certificat (remplit le bloc :443 tout seul)
+# Certificat : certbot crée lui-même le vhost 443 (copie du vhost 80 + TLS).
+# Répondre « Redirect » pour basculer tout le trafic en HTTPS.
 sudo certbot --apache -d forminter.proinsec.com
 ```
+
+Le vhost fourni est **en port 80 seul**, c'est voulu : un bloc `:443` écrit à
+la main avec `SSLEngine on` mais sans certificat empêche Apache de démarrer —
+et certbot a besoin d'un Apache qui tourne.
 
 Deux directives de cette conf sont **indispensables**, leur absence donne des
 pannes silencieuses :
 
 - `ProxyPreserveHost On` — Next.js vérifie que l'origine des formulaires du
   back office correspond à l'hôte : sans elle, tous les POST sont rejetés ;
-- `RequestHeader set X-Forwarded-Proto "https"` — c'est cet en-tête qui fait
-  passer le cookie d'administration en `Secure`.
+- `RequestHeader set X-Forwarded-Proto "expr=%{REQUEST_SCHEME}"` — c'est cet
+  en-tête qui fait passer le cookie d'administration en `Secure` (la forme
+  `expr=` reste juste dans le vhost 80 comme dans le 443 créé par certbot).
 
 Une fois le proxy en service, restreindre le port du site à la boucle locale
 dans `.env`, puis relancer :
