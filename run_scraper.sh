@@ -17,5 +17,8 @@ fi
 if [ -d .venv ]; then
     source .venv/bin/activate
 fi
-# Sortie journalisée dans logs/ et renvoyée sur stdout (visible via docker logs)
-python3 -m scraper.main 2>&1 | tee -a "$JOURNAL"
+# Sortie journalisée dans logs/ et renvoyée sur stdout (visible via docker logs).
+# -u est indispensable : redirigée dans un tube, la sortie de Python est
+# bufferisée par blocs, et le passage — qui dure 10 à 15 min — reste muet
+# jusqu'à la fin. `docker logs` donne alors l'impression d'un blocage.
+python3 -u -m scraper.main 2>&1 | tee -a "$JOURNAL"

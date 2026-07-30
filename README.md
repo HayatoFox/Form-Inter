@@ -28,6 +28,38 @@ changer) ; via Docker : service `webapp` du compose (ci-dessous).
   mots de passe, cookies signés HMAC, CSRF sur tous les POST. Le port doit
   rester sur le LAN/VPN (pas de HTTPS intégré).
 
+### API JSON (`webapp/api.py`)
+
+Deux endpoints en lecture seule, destinés au site Next.js `Form-inter-site/`
+qui rapatrie le catalogue :
+
+| Endpoint | Contenu |
+|---|---|
+| `GET /api/sante` | nombre de sessions, d'organismes, date du dernier scrape |
+| `GET /api/sessions` | catalogue paginé (`page`, `par_page`, `passees=1`, `depuis=AAAA-MM-JJ`) |
+
+Ils publient la vue `sessions_effectives` (corrections du back office
+comprises) limitée à l'offre courante par organisme, et **excluent par défaut
+les sessions terminées**.
+
+Ces routes ne passent pas par le cookie de session mais par un jeton porteur :
+
+```bash
+curl -H "Authorization: Bearer $WEBAPP_API_TOKEN" http://localhost:8000/api/sante
+```
+
+**Tant que `WEBAPP_API_TOKEN` n'est pas défini, l'API répond 503** : rien ne
+s'ouvre par accident sur une installation existante.
+
+## Site de consultation (`Form-inter-site/`)
+
+Application Next.js + Prisma/SQLite, avec son propre back office. Elle se
+remplit par deux chemins qui cohabitent : l'import de fichiers Excel/CSV
+transmis par les organismes, et la liaison dynamique avec la base de ce dépôt —
+soit par l'API JSON ci-dessus, soit par lecture directe de
+`data/formations.db` quand les deux tournent sur la même machine. Voir
+[`Form-inter-site/README.md`](Form-inter-site/README.md).
+
 ## Lancement
 
 ```bash
@@ -40,24 +72,175 @@ Aucune dépendance externe : bibliothèque standard Python uniquement
 
 ## Docker (recommandé)
 
-Image basée sur Ubuntu 24.04 (noble), cron intégré, aucune dépendance Python.
+### En une commande — `./deploy.sh`
+
+Script de déploiement pour **Linux et macOS** : il vérifie Docker, engendre les
+mots de passe et jetons dans `.env` au premier lancement, construit les images,
+démarre les trois services, attend qu'ils répondent et affiche les
+identifiants.
 
 ```bash
-docker compose up -d --build
+./deploy.sh
 ```
 
-Deux services sur la même image : `scraper` (cron quotidien 6 h, modifiable
-via `CRON_SCHEDULE` ; `SCRAPE_AT_STARTUP: "0"` désactive le passage initial)
-et `webapp` (site interne sur le port 8000 — définir
-`WEBAPP_ADMIN_USER`/`WEBAPP_ADMIN_PASSWORD` avant le premier lancement).
-La BDD et les logs sont montés depuis l'hôte (`./data`, `./logs`).
-Attention : `./data` ne doit jamais être sur NFS/CIFS (verrous SQLite).
-Les passages sont visibles via `docker logs scrap-formations`.
+| Commande | Effet |
+|---|---|
+| `./deploy.sh` | démarre tout (construit les images si besoin) |
+| `./deploy.sh status` | état des trois services |
+| `./deploy.sh logs [svc]` | journaux en continu (`scraper`, `webapp`, `site`) |
+| `./deploy.sh sync` | force une synchronisation site ← backend |
+| `./deploy.sh scrape` | lance un passage de collecte immédiat |
+| `./deploy.sh secrets` | réaffiche les URL et identifiants |
+| `./deploy.sh stop` / `down` | arrête (les données restent dans `./data`, `./data-site`) |
 
-Passage unique sans le service :
+Les secrets ne sont **jamais réécrits** : `.env` est la mémoire de
+l'installation, à sauvegarder. `.env.example` liste tout ce qui est réglable
+(ports, planification, mode de liaison).
+
+La première construction prend plusieurs minutes (installation npm et build
+Next.js) et nécessite un accès réseau sortant vers le registre npm,
+`cdn.sheetjs.com` (la dépendance `xlsx`) et GitHub (binaires précompilés de
+`better-sqlite3`).
+
+#### Ne pas lancer le script avec `sudo` sur macOS
+
+Docker Desktop tourne sous votre compte : c'est **son** démon qui crée les
+montages, `sudo` ne lui donne aucun droit supplémentaire. En revanche il laisse
+dans le projet des fichiers appartenant à root — à commencer par `.env` en
+chmod 600 — que le lancement normal suivant ne saura plus lire. Le script
+refuse désormais de démarrer en root sur macOS. Si c'est déjà arrivé :
 
 ```bash
-docker compose run --rm scraper scrape
+sudo chown -R "$(id -un)" .
+./deploy.sh
+```
+
+Sur Linux, `sudo` reste légitime si votre compte n'est pas dans le groupe
+`docker`.
+
+#### « error while creating mount source path … operation not permitted »
+
+macOS protège `~/Documents`, `~/Bureau` et `~/Téléchargements` : Docker Desktop
+n'y a pas accès tant qu'il n'y est pas autorisé, ne *voit* donc pas le dossier,
+croit devoir le créer et échoue. Deux issues :
+
+1. Réglages système › Confidentialité et sécurité › **Fichiers et dossiers** →
+   activer « Dossier Documents » pour Docker (ou Accès complet au disque), puis
+   redémarrer Docker Desktop. Vérifier aussi que `/Users` figure dans Docker
+   Desktop › Settings › Resources › **File sharing**.
+2. Si la machine interdit ces autorisations, sortir les données du dossier
+   protégé **sans déplacer le dépôt**, en réglant dans `.env` :
+
+   ```
+   DATA_DIR=$HOME/form-inter/data
+   LOGS_DIR=$HOME/form-inter/logs
+   SITE_DATA_DIR=$HOME/form-inter/data-site
+   ```
+
+`./deploy.sh` relit la sortie de Docker et affiche cette marche à suivre
+lui-même quand il reconnaît l'erreur.
+
+#### Le premier démarrage met 10 à 15 minutes à se remplir
+
+Le conteneur `scraper` lance une collecte complète au démarrage. Pendant ce
+temps :
+
+- `./deploy.sh logs scraper` affiche l'avancement organisme par organisme ;
+- le site **ne se synchronise pas** : `/api/sante` du backend signale la
+  collecte en cours, et le site reporte le rapatriement plutôt que de
+  rapatrier un catalogue à moitié écrit (les organismes pas encore scrapés
+  n'ont aucune session courante). Les passages reportés apparaissent en
+  « Reporté » dans Admin › Sources de données ;
+- une fois la collecte finie, la synchronisation part d'elle-même à la visite
+  suivante — ou tout de suite avec `./deploy.sh sync`.
+
+#### « Le site affiche 200 formations, le site de veille 3 900 sessions »
+
+Ce n'est pas une perte de données : les deux ne comptent pas la même chose. Une
+**formation** regroupe toutes ses dates et tous ses lieux, une **session** est
+une occurrence datée. Quelques centaines de formations pour quelques milliers
+de sessions est le rapport attendu. La page `/formations` affiche désormais les
+deux nombres, et Admin › Sources de données donne le total de sessions
+synchronisées, directement comparable au site de veille.
+
+#### Connexion impossible au back office du site
+
+Si l'identifiant est bon mais que la page de connexion revient en boucle, c'est
+le cookie qui n'est pas accepté. Le site ne marque le cookie `Secure` que si la
+requête arrive en HTTPS ; derrière un reverse proxy TLS qui ne pose pas
+`X-Forwarded-Proto`, régler `COOKIE_SECURE=1` dans `.env`. En accès HTTP direct
+sur le LAN, laisser à `0`.
+
+Les identifiants sont dans `.env` et réaffichables avec `./deploy.sh secrets`.
+
+### Les trois services
+
+Image Ubuntu 24.04 pour les deux premiers (cron intégré, aucune dépendance
+Python), image Node 22 pour le site.
+
+| Service | Conteneur | Port | Rôle |
+|---|---|---|---|
+| `scraper` | `scrap-formations` | — | collecte quotidienne (`CRON_SCHEDULE`, défaut 6 h ; `SCRAPE_AT_STARTUP=0` désactive le passage initial) |
+| `webapp` | `scrap-webapp` | 8000 | site interne de veille + API JSON |
+| `site` | `scrap-site` | 3000 | site de consultation Next.js |
+
+Le site interroge le backend par le réseau du compose
+(`BACKEND_MODE=http`, `http://webapp:8000`) : aucun fichier partagé entre eux,
+donc aucun verrou SQLite à faire cohabiter entre conteneurs. Pour lire
+directement la base à la place, passer `BACKEND_MODE=sqlite` dans `.env` et
+décommenter le montage de `./data` sur le service `site`.
+
+La BDD de veille et les logs sont montés depuis l'hôte (`./data`, `./logs`),
+la base propre au site dans `./data-site`. Attention : `./data` ne doit jamais
+être sur NFS/CIFS (verrous SQLite). Ces ports n'ont pas de HTTPS : à garder sur
+le LAN ou le VPN.
+
+### Exposer le site sur un domaine (Apache déjà en place)
+
+Le serveur utilise Apache comme reverse proxy : l'hôte virtuel prêt à l'emploi
+est dans [`apache/forminter.conf`](apache/forminter.conf) (forminter.proinsec.com
+→ conteneur du site, port 3000).
+
+```bash
+sudo a2enmod proxy proxy_http headers ssl
+sudo cp apache/forminter.conf /etc/apache2/sites-available/forminter.conf
+sudo a2ensite forminter
+sudo apachectl configtest && sudo systemctl restart apache2
+
+# Certificat : certbot crée lui-même le vhost 443 (copie du vhost 80 + TLS).
+# Répondre « Redirect » pour basculer tout le trafic en HTTPS.
+sudo certbot --apache -d forminter.proinsec.com
+```
+
+Le vhost fourni est **en port 80 seul**, c'est voulu : un bloc `:443` écrit à
+la main avec `SSLEngine on` mais sans certificat empêche Apache de démarrer —
+et certbot a besoin d'un Apache qui tourne.
+
+Deux directives de cette conf sont **indispensables**, leur absence donne des
+pannes silencieuses :
+
+- `ProxyPreserveHost On` — Next.js vérifie que l'origine des formulaires du
+  back office correspond à l'hôte : sans elle, tous les POST sont rejetés ;
+- `RequestHeader set X-Forwarded-Proto "expr=%{REQUEST_SCHEME}"` — c'est cet
+  en-tête qui fait passer le cookie d'administration en `Secure` (la forme
+  `expr=` reste juste dans le vhost 80 comme dans le 443 créé par certbot).
+
+Une fois le proxy en service, restreindre le port du site à la boucle locale
+dans `.env`, puis relancer :
+
+```
+SITE_BIND=127.0.0.1
+```
+
+Le site interne de veille (port 8000) reste volontairement hors du proxy, sur
+le LAN/VPN.
+
+### Sans le script
+
+```bash
+cp .env.example .env   # puis renseigner mots de passe et secrets
+docker compose up -d --build
+docker compose run --rm scraper scrape   # passage unique
 ```
 
 Le scrape s'exécute sous l'utilisateur `ubuntu` (uid 1000) du conteneur :

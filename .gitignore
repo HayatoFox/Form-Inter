@@ -1,5 +1,9 @@
 __pycache__/
 data/
+data-site/
 logs/
 .venv/
 vendor/
+
+# Secrets du déploiement Docker, engendrés par ./deploy.sh
+.env

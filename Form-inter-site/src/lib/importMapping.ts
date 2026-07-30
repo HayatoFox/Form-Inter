@@ -2,6 +2,7 @@ export const IMPORT_TARGET_FIELDS = [
   { value: "organisme", label: "Organisme (nom)" },
   { value: "intitule", label: "Intitulé de la formation" },
   { value: "domaine", label: "Domaine" },
+  { value: "typeFormation", label: "Type / catégorie d'origine" },
   { value: "description", label: "Description" },
   { value: "dureeValeur", label: "Durée (valeur)" },
   { value: "dureeUnite", label: "Durée (unité)" },
@@ -9,6 +10,10 @@ export const IMPORT_TARGET_FIELDS = [
   { value: "centre", label: "Nom du centre" },
   { value: "dateDebut", label: "Date de début" },
   { value: "dateFin", label: "Date de fin" },
+  { value: "tarif", label: "Tarif" },
+  { value: "placesInfo", label: "Disponibilité / places" },
+  { value: "remarque", label: "Remarque" },
+  { value: "urlProgramme", label: "Lien vers le programme" },
 ] as const;
 
 export type ImportTargetField = (typeof IMPORT_TARGET_FIELDS)[number]["value"];
@@ -16,7 +21,8 @@ export type ImportTargetField = (typeof IMPORT_TARGET_FIELDS)[number]["value"];
 const GUESS_KEYWORDS: Record<ImportTargetField, string[]> = {
   organisme: ["organisme", "organisation", "partenaire"],
   intitule: ["intitule", "formation", "titre", "nom de la formation"],
-  domaine: ["domaine", "categorie", "theme"],
+  domaine: ["domaine", "theme"],
+  typeFormation: ["type", "categorie", "famille"],
   description: ["description", "descriptif", "resume"],
   dureeValeur: ["duree", "duration"],
   dureeUnite: ["unite"],
@@ -24,6 +30,10 @@ const GUESS_KEYWORDS: Record<ImportTargetField, string[]> = {
   centre: ["centre", "site"],
   dateDebut: ["date debut", "date de debut", "debut", "date"],
   dateFin: ["date fin", "date de fin", "fin"],
+  tarif: ["tarif", "prix", "cout", "montant"],
+  placesInfo: ["disponibilite", "places", "dispo"],
+  remarque: ["remarque", "commentaire", "note", "observation"],
+  urlProgramme: ["programme", "lien", "url", "fiche"],
 };
 
 function normalize(value: unknown) {

@@ -1,17 +1,24 @@
+# Trois services : la collecte (cron), le site interne stdlib, et le site de
+# consultation Next.js. Les valeurs viennent du fichier .env de ce dossier —
+# `./deploy.sh` le crée et y engendre les secrets au premier lancement.
+
 services:
   scraper:
     build: .
     container_name: scrap-formations
     restart: unless-stopped
     environment:
-      TZ: Europe/Paris
+      TZ: "${TZ:-Europe/Paris}"
       # Planification cron (défaut : tous les jours à 6 h)
-      CRON_SCHEDULE: "0 6 * * *"
+      CRON_SCHEDULE: "${CRON_SCHEDULE:-0 6 * * *}"
       # Mettre à 0 pour ne pas scraper au démarrage du conteneur
-      SCRAPE_AT_STARTUP: "1"
+      SCRAPE_AT_STARTUP: "${SCRAPE_AT_STARTUP:-1}"
     volumes:
-      - ./data:/app/data   # la BDD SQLite reste accessible sur l'hôte
-      - ./logs:/app/logs
+      # La BDD SQLite reste accessible sur l'hôte. DATA_DIR/LOGS_DIR permettent
+      # de sortir les données d'un dossier que Docker n'a pas le droit de lire
+      # (macOS : ~/Documents, ~/Bureau et ~/Téléchargements sont protégés).
+      - "${DATA_DIR:-./data}:/app/data"
+      - "${LOGS_DIR:-./logs}:/app/logs"
 
   webapp:
     build: .
@@ -19,12 +26,82 @@ services:
     restart: unless-stopped
     command: ["webapp"]
     environment:
-      TZ: Europe/Paris
+      TZ: "${TZ:-Europe/Paris}"
       # Premier compte admin, créé uniquement si aucun utilisateur n'existe
-      WEBAPP_ADMIN_USER: "admin"
-      WEBAPP_ADMIN_PASSWORD: "a-changer-des-la-premiere-connexion"
+      WEBAPP_ADMIN_USER: "${WEBAPP_ADMIN_USER:-admin}"
+      WEBAPP_ADMIN_PASSWORD: "${WEBAPP_ADMIN_PASSWORD:?definir WEBAPP_ADMIN_PASSWORD dans .env}"
+      # Jeton de l'API JSON lue par le site Next.js (/api/sante, /api/sessions).
+      # Laissé vide, l'API reste fermée (503).
+      WEBAPP_API_TOKEN: "${WEBAPP_API_TOKEN:-}"
     ports:
-      - "8000:8000"        # à garder sur le LAN/VPN (pas de HTTPS intégré)
+      - "${WEBAPP_PORT:-8000}:8000"   # à garder sur le LAN/VPN (pas de HTTPS intégré)
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - "${DATA_DIR:-./data}:/app/data"
+      - "${LOGS_DIR:-./logs}:/app/logs"
+    healthcheck:
+      # /connexion est la seule page publique : elle répond sans jeton.
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/connexion', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
+  site:
+    build:
+      context: ./Form-inter-site
+    container_name: scrap-site
+    restart: unless-stopped
+    depends_on:
+      webapp:
+        condition: service_healthy
+    environment:
+      TZ: "${TZ:-Europe/Paris}"
+
+      # Base propre au site (catalogue consolidé + comptes + réglages).
+      DATABASE_URL: "file:/app/site/data/site.db"
+      SESSION_SECRET: "${SESSION_SECRET:?definir SESSION_SECRET dans .env}"
+
+      # Compte admin du site, créé au tout premier démarrage seulement.
+      ADMIN_EMAIL: "${SITE_ADMIN_EMAIL:-admin@example.com}"
+      ADMIN_PASSWORD_SEED: "${SITE_ADMIN_PASSWORD:?definir SITE_ADMIN_PASSWORD dans .env}"
+
+      # Jeton de /api/cron/sync. Vide = endpoint fermé (503).
+      CRON_SECRET: "${CRON_SECRET:-}"
+
+      # Le cookie d'administration n'est marqué Secure que si la requête arrive
+      # en HTTPS (X-Forwarded-Proto d'un reverse proxy TLS). À forcer à 1
+      # seulement si le proxy ne pose pas cet en-tête : marqué Secure sur un
+      # accès HTTP en LAN, le navigateur refuse le cookie et la connexion
+      # échoue en boucle sans message.
+      COOKIE_SECURE: "${COOKIE_SECURE:-0}"
+
+      # Liaison avec le backend. En mode "http" les deux conteneurs se parlent
+      # par le réseau du compose : aucun fichier partagé, aucun souci de droits.
+      BACKEND_MODE: "${BACKEND_MODE:-http}"
+      BACKEND_URL: "http://webapp:8000"
+      BACKEND_TOKEN: "${WEBAPP_API_TOKEN:-}"
+      BACKEND_AUTO_SYNC: "${BACKEND_AUTO_SYNC:-1}"
+      BACKEND_SYNC_TTL_MINUTES: "${BACKEND_SYNC_TTL_MINUTES:-60}"
+      BACKEND_INCLURE_PASSEES: "${BACKEND_INCLURE_PASSEES:-0}"
+
+      # Variante « fichier partagé » : passer BACKEND_MODE à "sqlite" dans .env
+      # et décommenter le montage de ./data ci-dessous. Le chemin par défaut
+      # (../data/formations.db depuis /app/site) tombe alors juste. À réserver
+      # au cas où le réseau entre conteneurs pose problème : le mode http
+      # évite tout partage de verrous SQLite entre conteneurs.
+    ports:
+      # SITE_BIND=127.0.0.1 quand un reverse proxy (Apache…) tourne sur la même
+      # machine : le port 3000 n'est alors joignable que par le proxy, pas
+      # depuis le réseau.
+      - "${SITE_BIND:-0.0.0.0}:${SITE_PORT:-3000}:3000"
+    volumes:
+      - "${SITE_DATA_DIR:-./data-site}:/app/site/data"
+      # - "${DATA_DIR:-./data}:/app/data"
+    healthcheck:
+      test: ["CMD", "node", "-e",
+             "fetch('http://localhost:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s

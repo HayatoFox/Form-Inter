@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { MANUEL } from "@/lib/backend/types";
 import { formationSchema, sessionSchema } from "@/lib/validation";
 
 function toEntries(formData: FormData) {
@@ -54,14 +55,25 @@ export async function deleteFormation(id: string) {
 
 export async function createSession(formationId: string, formData: FormData) {
   const raw = toEntries(formData);
-  const data = sessionSchema.parse({ ...raw, formationId });
+  const data = sessionSchema.parse({
+    ...raw,
+    formationId,
+    permanente: formData.get("permanente") !== null,
+  });
+  // Une session cochée « entrée permanente » n'a pas de dates : c'est ainsi que
+  // le backend représente une offre ouverte en continu.
+  const permanente = data.permanente;
   await prisma.session.create({
     data: {
       formationId: data.formationId,
       centreId: data.centreId || null,
-      dateDebut: data.dateDebut,
-      dateFin: data.dateFin ?? null,
+      dateDebut: permanente ? null : (data.dateDebut ?? null),
+      dateFin: permanente ? null : (data.dateFin ?? null),
+      permanente,
       placesInfo: data.placesInfo || null,
+      tarif: data.tarif || null,
+      remarque: data.remarque || null,
+      source: MANUEL,
     },
   });
   revalidatePath(`/admin/formations/${formationId}`);

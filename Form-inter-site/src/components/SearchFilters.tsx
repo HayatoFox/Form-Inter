@@ -11,6 +11,8 @@ export type SearchFiltersProps = {
     ville?: string;
     dateFrom?: string;
     dateTo?: string;
+    passees?: boolean;
+    permanentes?: boolean;
   };
 };
 
@@ -26,6 +28,10 @@ export function SearchFilters({
       action="/formations"
       className="grid grid-cols-1 gap-4 rounded-lg border border-zinc-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-6 lg:items-end dark:border-zinc-800 dark:bg-zinc-900"
     >
+      {/* Distingue « formulaire soumis, cases décochées » de « premier
+          affichage » : sans ce marqueur les cases reprendraient leur défaut. */}
+      <input type="hidden" name="f" value="1" />
+
       <div className="lg:col-span-2">
         <label htmlFor="q" className="block text-xs font-medium text-zinc-500">
           Mot-clé
@@ -110,8 +116,8 @@ export function SearchFilters({
         />
       </div>
 
-      <div className="flex items-end gap-2 lg:col-span-6">
-        <div className="flex-1">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3 lg:col-span-6">
+        <div>
           <label htmlFor="dateTo" className="block text-xs font-medium text-zinc-500">
             Au
           </label>
@@ -122,6 +128,26 @@ export function SearchFilters({
             defaultValue={current.dateTo}
             className="mt-1 w-full max-w-[200px] rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
+        </div>
+        <div className="flex flex-1 flex-wrap gap-x-6 gap-y-2 text-sm">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              name="permanentes"
+              value="1"
+              defaultChecked={current.permanentes ?? true}
+            />
+            Sessions à entrée permanente
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              name="passees"
+              value="1"
+              defaultChecked={current.passees ?? false}
+            />
+            Inclure les sessions passées
+          </label>
         </div>
         <button
           type="submit"

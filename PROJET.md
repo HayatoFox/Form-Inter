@@ -170,21 +170,109 @@ connexion SQLite par requête, HTML rendu par fonctions Python +
   HMAC (secret persisté dans `data/.secret`, chmod 600), redirections
   relatives validées, mots de passe jamais dans les URLs.
 
+## 6 bis. Le site de consultation (`Form-inter-site/`)
+
+Second front, Next.js (App Router) + Prisma/SQLite, développé en parallèle du
+site stdlib : recherche publique par cartes/modales et back office propre. Il ne
+remplace pas `webapp/` — les deux lisent la même veille, `webapp/` restant
+l'outil interne complet (exports, santé des scrapers, scrape manuel, overrides).
+
+Il se remplit par **deux sources qui cohabitent** :
+
+- **import Excel/CSV** d'un fichier transmis par un organisme (assistant en
+  4 étapes : fichier → mapping des colonnes → aperçu → import) ;
+- **liaison dynamique avec ce backend**, en mode `http` (API JSON, §6) ou
+  `sqlite` (lecture seule de `data/formations.db` sur le même volume).
+
+Chaque ligne porte sa provenance (`source` = `MANUEL` | `BACKEND`) : la
+synchronisation ne touche jamais aux données manuelles, et un import ne modifie
+jamais une ligne rapatriée. La clé de rapprochement d'une session est la **clé
+naturelle** du backend (`organisme|formation|ville|date_debut|date_fin`), pas
+son id AUTOINCREMENT (qui change si la base est régénérée).
+
+Points structurants :
+
+- **Le modèle à plat du backend est éclaté** en Organisme / Centre / Domaine /
+  Formation / Session. Les entités sont rapprochées sans casse ni accents
+  (« Cepim » saisi à la main = « CEPIM » scrapé).
+- **Les sessions à entrée/sortie permanente** (dates NULL) sont reprises telles
+  quelles : `Session.dateDebut` est nullable côté site aussi.
+- **Dates calendaires à minuit UTC**, affichées en UTC : sans ça une date
+  importée à minuit local s'affiche la veille selon le fuseau.
+- **Garde-fous de synchronisation** : un lot vide ou une pagination tronquée
+  interrompent le passage plutôt que d'amputer le catalogue ; un verrou en base
+  (avec expiration) interdit deux passages simultanés.
+- **Miroir assumé** : une session du backend absente du lot est retirée du site.
+  C'est sans danger parce que l'offre courante est corrélée *par organisme* — un
+  scraper en échec continue de publier son relevé de la veille.
+- **Déclenchement** : bouton du back office, rafraîchissement automatique à la
+  visite quand le dernier passage dépasse la fraîcheur demandée (`after()` de
+  Next.js, le visiteur n'attend pas), ou `GET /api/cron/sync` avec
+  `CRON_SECRET` depuis un cron système.
+- **Pas de synchronisation pendant une collecte** : `/api/sante` expose
+  `scrape_en_cours` (sonde du verrou `data/.scrape.lock`) et le site reporte le
+  passage. Sans ça, le premier démarrage rapatrie un catalogue à moitié écrit —
+  les organismes pas encore scrapés n'ont aucune session courante — et le site
+  reste amputé jusqu'à la péremption suivante. Un passage reporté est consigné
+  « ignore » et non « ok », donc le rafraîchissement automatique réessaie à la
+  visite suivante au lieu d'attendre une heure.
+- **Formations ≠ sessions** : le site liste des formations (une par couple
+  organisme + intitulé), le site de veille des sessions. Quelques centaines
+  contre quelques milliers : la page affiche les deux nombres, faute de quoi
+  la comparaison entre les deux sites fait croire à une perte de données.
+- **Cookie d'administration** : marqué `Secure` seulement si la requête arrive
+  en HTTPS (`X-Forwarded-Proto`), ou si `COOKIE_SECURE=1`. Le marquer sur un
+  `NODE_ENV=production` servi en HTTP sur le LAN — le cas nominal ici — rend la
+  connexion impossible : le navigateur refuse le cookie, sans message.
+
 ## 7. Docker & déploiement
 
-Une seule image (`ubuntu:24.04` + python3 + cron + ca-certificates + tzdata),
-deux services dans `docker-compose.yml` :
+Trois services dans `docker-compose.yml`, sur deux images :
 
-- **`scraper`** : cron intégré (`CRON_SCHEDULE`, défaut 6 h) + scrape au
-  démarrage (`SCRAPE_AT_STARTUP=0` pour désactiver).
-- **`webapp`** : `command: ["webapp"]`, port 8000. Définir
+- **`scraper`** (`ubuntu:24.04` + python3 + cron) : cron intégré
+  (`CRON_SCHEDULE`, défaut 6 h) + scrape au démarrage (`SCRAPE_AT_STARTUP=0`
+  pour désactiver).
+- **`webapp`** : même image, `command: ["webapp"]`, port 8000. Définir
   `WEBAPP_ADMIN_USER`/`WEBAPP_ADMIN_PASSWORD` avant le premier lancement.
+- **`site`** (`node:22-bookworm-slim`) : le site de consultation, port 3000.
+  Migrations Prisma et compte admin au premier démarrage
+  (`Form-inter-site/docker-entrypoint.sh`).
 
-Volumes partagés `./data` + `./logs` (bind mounts, uid 1000 = utilisateur
-`ubuntu` du conteneur). **Jamais `./data` sur NFS/CIFS** (verrous SQLite).
-Port 8000 à garder sur le LAN/VPN (pas de HTTPS intégré ; reverse proxy si
-exposition plus large). `docker-entrypoint.sh` : modes `cron` / `scrape` /
-`webapp`.
+`./deploy.sh` est le point d'entrée (Linux et macOS) : vérification de Docker,
+engendrement des secrets dans `.env` au premier lancement — jamais réécrits
+ensuite —, construction, démarrage, attente des healthchecks, affichage des
+identifiants. Sous-commandes `status` / `logs` / `sync` / `scrape` / `secrets`
+/ `stop` / `down`. Écrit pour le bash 3.2 de macOS (pas de tableaux associatifs,
+pas de `sed -i`).
+
+Volumes en bind mount : `./data` + `./logs` (uid 1000 = utilisateur `ubuntu`
+du conteneur) pour la veille, `./data-site` pour la base propre au site.
+**Jamais `./data` sur NFS/CIFS** (verrous SQLite). Ports 8000 et 3000 à garder
+sur le LAN/VPN (pas de HTTPS intégré ; reverse proxy si exposition plus large).
+`docker-entrypoint.sh` du backend : modes `cron` / `scrape` / `webapp`.
+
+**Exposition publique** : forminter.proinsec.com est servi par l'Apache déjà
+en place sur le serveur (pas de proxy conteneurisé) — hôte virtuel versionné
+dans `apache/forminter.conf`, certificat via certbot. Deux directives y sont
+vitales : `ProxyPreserveHost On` (sans elle Next.js rejette les POST des
+actions serveur, contrôle d'origine oblige) et `RequestHeader set
+X-Forwarded-Proto "https"` (c'est lui qui fait passer le cookie admin en
+Secure). Derrière le proxy, `SITE_BIND=127.0.0.1` retire le port 3000 du
+réseau. Le port 8000 (veille) reste volontairement hors proxy, sur le LAN/VPN.
+
+**Le site parle au backend par HTTP** (`BACKEND_MODE=http`,
+`http://webapp:8000`) plutôt que par le fichier partagé : ça évite de faire
+cohabiter les verrous WAL de SQLite entre deux conteneurs, et surtout le
+mélange de propriétaires sur les fichiers `-wal`/`-shm` (le scraper tourne en
+uid 1000, le site en root). Le mode `sqlite` reste disponible en décommentant
+le montage de `./data` sur le service `site`.
+
+**L'image du site est volontairement en une seule étape**, sans
+`output: "standalone"` : le site embarque un module natif (better-sqlite3) et
+un client Prisma généré hors dépôt, que le traçage de fichiers de Next gère
+mal. Corollaire côté code : toutes les pages qui lisent la base sont en
+`force-dynamic` — sans ça, Next les prérend pendant `next build`, où aucune
+base n'existe encore dans l'image.
 
 ## 8. Exploitation courante
 
