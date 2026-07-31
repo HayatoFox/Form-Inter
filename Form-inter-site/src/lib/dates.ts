@@ -27,10 +27,27 @@ export function parseDateISO(texte: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-// Minuit UTC du jour courant, tel que le voit le serveur : c'est la borne
-// utilisée pour distinguer les sessions passées des sessions à venir.
+/**
+ * Minuit UTC du jour courant à Paris : la borne qui sépare les sessions
+ * passées des sessions à venir.
+ *
+ * Le fuseau est nommé explicitement, et ce n'est pas un détail. Cette fonction
+ * tourne aussi dans le navigateur (la réglure vit dans une carte, qui est un
+ * composant client) : si le serveur lisait sa date locale et le navigateur la
+ * sienne, les deux ne tomberaient pas d'accord sur « aujourd'hui » entre
+ * minuit et deux heures du matin, ce qui décale la réglure et fait échouer
+ * l'hydratation. Un catalogue français a un seul aujourd'hui, celui de Paris.
+ */
+const jourParis = new Intl.DateTimeFormat("fr-CA", {
+  timeZone: "Europe/Paris",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 export function debutDuJour(): Date {
-  return normaliserDate(new Date());
+  const [annee, mois, jour] = jourParis.format(new Date()).split("-").map(Number);
+  return dateCalendaire(annee, mois, jour);
 }
 
 const courtFormatter = new Intl.DateTimeFormat("fr-FR", {

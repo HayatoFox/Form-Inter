@@ -10,13 +10,13 @@ export default async function AdminOrganismesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Organismes</h1>
+      <h1 className="signature text-[26px] leading-tight text-encre">Organismes</h1>
 
       <form
         action={createOrganisme}
         className="grid grid-cols-1 gap-4 cadre p-4 sm:grid-cols-2"
       >
-        <h2 className="sm:col-span-2 text-sm font-semibold">
+        <h2 className="sm:col-span-2 text-[13px] text-encre-3">
           Ajouter un organisme
         </h2>
         <div>

@@ -42,7 +42,7 @@ export function MergeDomaineButton({
         titre={`Fusionner « ${domaine.nom} »`}
       >
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-semibold">
+            <h2 className="signature text-[19px] text-encre">
               Fusionner « {domaine.nom} »
             </h2>
             <button

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { action, cadre, champ, legende } from "@/lib/ui";
 
 export function LoginForm() {
   const router = useRouter();
@@ -31,17 +32,24 @@ export function LoginForm() {
     }
 
     const from = searchParams.get("from");
-    router.push(from && from.startsWith("/admin") ? from : "/admin");
+    const cible = from && from.startsWith("/admin") ? from : "/admin";
+
+    // On vide le cache de route AVANT de naviguer, et on attend que ce soit
+    // fait. Sans cela, `push` réutilise la réponse mise en cache quand on
+    // n'était pas connecté — c'est-à-dire la redirection vers cette page — et
+    // le bouton « Se connecter » renvoie à l'écran de connexion alors que le
+    // cookie est bien posé.
     router.refresh();
+    startTransition(() => router.push(cible));
   }
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 cadre p-6"
+      className={`${cadre} flex flex-col gap-4 p-6`}
     >
       <div>
-        <label htmlFor="email" className="block text-[13px] text-encre-3">
+        <label htmlFor="email" className={legende}>
           Email
         </label>
         <input
@@ -50,11 +58,11 @@ export function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+          className={`${champ} mt-1.5`}
         />
       </div>
       <div>
-        <label htmlFor="password" className="block text-[13px] text-encre-3">
+        <label htmlFor="password" className={legende}>
           Mot de passe
         </label>
         <input
@@ -63,13 +71,13 @@ export function LoginForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+          className={`${champ} mt-1.5`}
         />
       </div>
       {error && (
         <p
           role="alert"
-          className="rounded-[var(--rayon)] border border-erreur/30 bg-erreur-doux px-4 py-2.5 text-sm text-erreur"
+          className="rounded-[var(--rayon)] bg-erreur-doux px-4 py-2.5 text-sm text-erreur shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--erreur)_25%,transparent)]"
         >
           {error}
         </p>
@@ -77,7 +85,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] bg-action px-4 py-2 text-sm font-medium text-action-texte transition-opacity hover:opacity-85 disabled:pointer-events-none disabled:opacity-40"
+        className={action}
       >
         {loading ? "Connexion…" : "Se connecter"}
       </button>

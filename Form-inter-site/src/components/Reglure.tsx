@@ -197,10 +197,12 @@ export function Reglure({
         const x = i * pas + marge;
         return (
           <g key={`${m.annee}-${m.mois}`} className="reglure-mois">
-            <title>
-              {MOIS_LONGS[m.mois]} {m.annee} : {m.nombre} session
-              {m.nombre > 1 ? "s" : ""}
-            </title>
+            {/* Un seul enfant, une chaîne déjà composée. Avec plusieurs
+                enfants JSX, React 19 vide ce `<title>` au rendu serveur — il
+                le prend pour une balise de métadonnées de document — et le
+                remplit côté client : l'infobulle ne marche pas au premier
+                affichage, et l'hydratation échoue sur toute la page. */}
+            <title>{`${MOIS_LONGS[m.mois]} ${m.annee} : ${m.nombre} session${m.nombre > 1 ? "s" : ""}`}</title>
             {/* Cible de survol pleine colonne : viser un fût de quelques pixels
                 est impossible. */}
             <rect

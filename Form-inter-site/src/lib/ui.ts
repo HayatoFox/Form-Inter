@@ -38,3 +38,13 @@ export const legende = "block text-[13px] text-encre-3";
 export const lien =
   "text-vif underline decoration-vif/30 underline-offset-[3px] " +
   "transition-colors hover:decoration-vif";
+
+/**
+ * L'action irréversible, et elle seule. C'est le seul endroit du site où une
+ * couleur remplit un bouton : ici elle veut dire quelque chose. L'oxblood de
+ * `--erreur` est désaturé, pas un rouge d'affiche.
+ */
+export const actionDanger =
+  "inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] " +
+  "bg-erreur px-4 py-2 text-sm font-medium text-white " +
+  "transition-opacity hover:opacity-85 disabled:pointer-events-none disabled:opacity-40";

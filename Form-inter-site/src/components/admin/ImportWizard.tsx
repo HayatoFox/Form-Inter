@@ -146,7 +146,7 @@ export function ImportWizard() {
       </div>
 
       {error && (
-        <p className="rounded-[var(--rayon)] border border-erreur/30 bg-erreur-doux px-4 py-2 text-sm text-erreur">
+        <p className="rounded-[var(--rayon)] bg-erreur-doux px-4 py-2 text-sm text-erreur shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--erreur)_25%,transparent)]">
           {error}
         </p>
       )}

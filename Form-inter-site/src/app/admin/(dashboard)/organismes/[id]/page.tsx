@@ -27,13 +27,13 @@ export default async function AdminOrganismeDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{organisme.nom}</h1>
+      <h1 className="signature text-[26px] leading-tight text-encre">{organisme.nom}</h1>
 
       <form
         action={updateOrganismeWithId}
         className="grid grid-cols-1 gap-4 cadre p-4 sm:grid-cols-2"
       >
-        <h2 className="sm:col-span-2 text-sm font-semibold">Informations</h2>
+        <h2 className="sm:col-span-2 text-[13px] text-encre-3">Informations</h2>
         <div>
           <label className="block text-[13px] text-encre-3">Nom</label>
           <input
@@ -84,7 +84,7 @@ export default async function AdminOrganismeDetailPage({
       </form>
 
       <div className="cadre p-4">
-        <h2 className="text-sm font-semibold">Centres de formation</h2>
+        <h2 className="text-[13px] text-encre-3">Centres de formation</h2>
 
         <ul className="mt-3 flex flex-col gap-2">
           {organisme.centres.map((c) => {

@@ -20,7 +20,7 @@ export function AdminNav() {
   const chemin = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-1 text-sm">
+    <nav className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
       {liens.map((lien) => {
         const actif =
           lien.href === "/admin"
@@ -31,11 +31,14 @@ export function AdminNav() {
             key={lien.href}
             href={lien.href}
             aria-current={actif ? "page" : undefined}
-            className={`rounded-[var(--rayon)] px-3 py-1.5 font-medium transition-colors ${
+            /* Même règle que la barre publique : encre pleine et graisse
+               pour la page courante, rien d'accroché autour. Une pastille
+               teintée ici contredirait la barre du dessus. */
+            className={
               actif
-                ? "bg-vif-doux text-vif"
-                : "text-encre-2 hover:bg-surface-creuse hover:text-encre"
-            }`}
+                ? "font-medium text-encre"
+                : "text-encre-3 transition-colors hover:text-encre"
+            }
           >
             {lien.label}
           </Link>

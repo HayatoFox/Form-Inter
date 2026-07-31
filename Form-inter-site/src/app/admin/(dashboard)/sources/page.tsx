@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { lireConfigBackendPublique } from "@/lib/backend/config";
 import { derniersPassages } from "@/lib/backend/sync";
 import { BACKEND, MANUEL } from "@/lib/backend/types";
+import { Nombre } from "@/components/Nombre";
 import { LiaisonBackend } from "@/components/admin/LiaisonBackend";
 
 const horodatage = new Intl.DateTimeFormat("fr-FR", {
@@ -28,7 +29,7 @@ export default async function AdminSourcesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="signature text-[26px] leading-tight text-encre">
           Sources de données
         </h1>
         <p className="mt-1 text-sm text-encre-2">
@@ -40,13 +41,13 @@ export default async function AdminSourcesPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="cadre p-4">
-          <div className="text-2xl font-semibold">{backendCounts}</div>
+          <Nombre valeur={backendCounts} className="donnee block text-2xl text-encre" />
           <div className="text-sm text-encre-2">
             session(s) synchronisées depuis le backend
           </div>
         </div>
         <div className="cadre p-4">
-          <div className="text-2xl font-semibold">{manuelCounts}</div>
+          <Nombre valeur={manuelCounts} className="donnee block text-2xl text-encre" />
           <div className="text-sm text-encre-2">
             session(s) saisies ou importées à la main
           </div>
@@ -56,7 +57,7 @@ export default async function AdminSourcesPage() {
       <LiaisonBackend config={config} />
 
       <div className="cadre p-6">
-        <h2 className="text-base font-semibold">Import Excel / CSV</h2>
+        <h2 className="signature text-[17px] text-encre">Import Excel / CSV</h2>
         <p className="mt-1 text-sm text-encre-2">
           Pour les organismes qui transmettent un fichier plutôt qu&apos;un
           planning en ligne. Les lignes importées portent la source
@@ -71,7 +72,7 @@ export default async function AdminSourcesPage() {
       </div>
 
       <div className="cadre p-6">
-        <h2 className="text-base font-semibold">
+        <h2 className="signature text-[17px] text-encre">
           Derniers passages de synchronisation
         </h2>
         {passages.length === 0 ? (

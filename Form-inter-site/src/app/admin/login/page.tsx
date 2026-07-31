@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { LoginForm } from "@/components/admin/LoginForm";
+import { Marque } from "@/components/Marques";
 
 export const metadata: Metadata = {
   title: "Connexion",
@@ -10,21 +11,17 @@ export const metadata: Metadata = {
 export default function AdminLoginPage() {
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col gap-5 py-16">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <span
-          aria-hidden="true"
-          className="grid h-11 w-11 place-items-center rounded-[var(--rayon)] bg-action text-lg font-bold text-action-texte"
-        >
-          F
-        </span>
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            Back office
-          </h1>
-          <p className="mt-1 text-sm text-encre-2">
-            Réservé à l&apos;équipe PROINSEC.
-          </p>
-        </div>
+      {/* La marque du site, nue. Pas une initiale dans une tuile pleine :
+          un signe posé dans une boîte est un défaut de composant, pas une
+          marque. */}
+      <div className="flex flex-col gap-2">
+        <Marque />
+        <h1 className="signature text-[26px] leading-tight text-encre">
+          Back office
+        </h1>
+        <p className="text-sm text-encre-2">
+          Réservé à l&apos;équipe PROINSEC.
+        </p>
       </div>
       <Suspense fallback={null}>
         <LoginForm />

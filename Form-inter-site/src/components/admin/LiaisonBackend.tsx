@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Dialogue } from "@/components/ui/Dialogue";
+import { actionDanger, actionDouce } from "@/lib/ui";
 import {
   enregistrerLiaison,
   lancerSynchronisation,
@@ -17,8 +18,7 @@ const champ =
 const libelle = "block text-[13px] text-encre-3";
 const boutonPrincipal =
   "inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] bg-action px-4 py-2 text-sm font-medium text-action-texte transition-opacity hover:opacity-85 disabled:pointer-events-none disabled:opacity-40";
-const boutonSecondaire =
-  "inline-flex items-center justify-center rounded-[var(--rayon)] bg-surface-creuse px-4 py-2 text-sm font-medium text-encre transition-colors hover:bg-trait disabled:opacity-40";
+const boutonSecondaire = actionDouce;
 
 function Message({ etat }: { etat: EtatAction }) {
   if (etat.statut === "vide") return null;
@@ -26,11 +26,9 @@ function Message({ etat }: { etat: EtatAction }) {
   return (
     <p
       role="status"
-      className={`rounded-[var(--rayon)] border px-4 py-2 text-sm ${
-        erreur
-          ? "border-erreur/30 bg-erreur-doux text-erreur"
-          : "border-vif/25 bg-vif-doux text-vif"
-      }`}
+      /* Un message est une phrase, pas un panneau : la couleur du texte dit
+         déjà s'il s'agit d'un échec. */
+      className={`text-sm ${erreur ? "text-erreur" : "text-vif"}`}
     >
       {etat.message}
       {etat.detail && (
@@ -115,7 +113,7 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
   return (
     <div className="flex flex-col gap-4 cadre p-6">
       <div>
-        <h2 className="text-base font-semibold">Liaison avec le backend de veille</h2>
+        <h2 className="signature text-[17px] text-encre">Liaison avec le backend de veille</h2>
         <p className="mt-1 text-sm text-encre-2">
           Rapatrie automatiquement les sessions collectées par le scraper. Les
           données saisies ou importées à la main ne sont jamais écrasées.
@@ -299,7 +297,7 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
           <h3 className="text-lg font-semibold text-erreur">
             Retirer les données du backend ?
           </h3>
-          <p className="mt-2 text-sm text-encre-2 dark:text-encre-3">
+          <p className="mt-2 text-sm text-encre-2">
             Toutes les sessions synchronisées seront supprimées, ainsi que les
             formations, centres, domaines et organismes créés par la
             synchronisation et devenus vides. Les données manuelles restent en
@@ -320,7 +318,7 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
                 setPurgeOuverte(false);
                 executer("purge", () => purgerDonneesBackend());
               }}
-              className="rounded-[var(--rayon)] bg-erreur px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className={actionDanger}
             >
               Retirer
             </button>

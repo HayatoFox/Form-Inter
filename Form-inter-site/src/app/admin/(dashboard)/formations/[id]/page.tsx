@@ -15,7 +15,7 @@ function SourceBadge({ source }: { source: string }) {
     <span
       className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
         backend
-          ? "bg-vif-doux text-vif"
+          ? "text-vif"
           : "bg-surface-creuse text-encre-2"
       }`}
       title={
@@ -66,14 +66,14 @@ export default async function AdminFormationDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="signature text-[26px] leading-tight text-encre">
           {formation.intitule}
         </h1>
         <SourceBadge source={formation.source} />
       </div>
 
       {formation.source === BACKEND && (
-        <p className="rounded-[var(--rayon)] border border-alerte/30 bg-alerte/10 px-4 py-2 text-sm text-alerte">
+        <p className="text-sm text-alerte">
           Cette formation provient du backend de veille. Ses sessions
           synchronisées sont réécrites à chaque passage : pour une correction
           durable, passez par le back office du backend.
@@ -84,7 +84,7 @@ export default async function AdminFormationDetailPage({
         action={updateFormationWithId}
         className="grid grid-cols-1 gap-4 cadre p-4 sm:grid-cols-2"
       >
-        <h2 className="sm:col-span-2 text-sm font-semibold">Informations</h2>
+        <h2 className="sm:col-span-2 text-[13px] text-encre-3">Informations</h2>
         <div className="sm:col-span-2">
           <label className="block text-[13px] text-encre-3">
             Intitulé
@@ -178,7 +178,7 @@ export default async function AdminFormationDetailPage({
       </form>
 
       <div className="cadre p-4">
-        <h2 className="text-sm font-semibold">Sessions</h2>
+        <h2 className="text-[13px] text-encre-3">Sessions</h2>
 
         <ul className="mt-3 flex flex-col gap-2">
           {formation.sessions.map((s) => {
