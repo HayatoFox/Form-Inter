@@ -17,12 +17,16 @@ jamais une ligne rapatriée du backend.
 ## Démarrage
 
 ```bash
-npm install
+npm install                 # engendre aussi le client Prisma (postinstall)
 cp .env.example .env        # puis renseigner les valeurs
 npx prisma migrate deploy   # ou `migrate dev` en développement
 npm run db:seed             # organismes de départ + compte admin
 npm run dev                 # http://localhost:3000
 ```
+
+Le client Prisma est engendré dans `src/generated/`, **hors dépôt** : un clone
+neuf ne l'a pas. Le script `postinstall` s'en charge ; en cas de doute,
+`npx prisma generate` le refait.
 
 ## Tester en local, sans backend ni Docker
 
@@ -33,11 +37,11 @@ l'interface.
 
 ```bash
 cd Form-inter-site
-npm install
+npm install                  # engendre le client Prisma au passage
 
-cat > .env <<'FIN'
+cat > .env <<FIN
 DATABASE_URL="file:./dev.db"
-SESSION_SECRET="remplacer-par-openssl-rand-hex-32"
+SESSION_SECRET="$(openssl rand -hex 32)"
 ADMIN_EMAIL="admin@local"
 ADMIN_PASSWORD_SEED="demo"
 FIN
