@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { Pastille } from "@/components/ui/Pastille";
-import { carte } from "@/lib/ui";
+import { FlecheSortante } from "@/components/Marques";
+import { cadre, lien } from "@/lib/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -51,22 +51,23 @@ export default async function OrganismeDetailPage({
     <div className="flex max-w-4xl flex-col gap-5">
       <Link
         href="/organismes"
-        className="w-fit text-sm text-texte-doux underline-offset-2 transition-colors hover:text-texte hover:underline"
+        className="w-fit text-sm text-encre-3 transition-colors hover:text-encre"
       >
-        ← Retour aux organismes
+        Retour aux organismes
       </Link>
 
-      <div className={`${carte} p-6`}>
-        <h1 className="text-2xl font-semibold tracking-tight">{organisme.nom}</h1>
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-texte-doux">
+      <div className={`${cadre} p-6`}>
+        <h1 className="signature text-[clamp(1.75rem,4vw,2.5rem)] leading-[1.1] text-encre">{organisme.nom}</h1>
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-encre-2">
           {organisme.siteWeb && (
             <a
               href={organisme.siteWeb}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-marque underline-offset-2 hover:underline"
+              className={`inline-flex items-baseline gap-1.5 ${lien}`}
             >
-              {organisme.siteWeb.replace(/^https?:\/\//, "").replace(/\/+$/, "")} ↗
+              {organisme.siteWeb.replace(/^https?:\/\//, "").replace(/\/+$/, "")}
+              <FlecheSortante />
             </a>
           )}
           {coordonnees.map((c) => (
@@ -74,28 +75,28 @@ export default async function OrganismeDetailPage({
           ))}
         </div>
 
-        <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-bordure pt-5 sm:grid-cols-3">
+        <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-trait pt-5 sm:grid-cols-3">
           <div>
-            <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+            <dt className="text-[13px] text-encre-3">
               Formations
             </dt>
-            <dd className="chiffres mt-1 text-sm font-medium">
+            <dd className="donnee mt-1 text-sm font-medium">
               {organisme.formations.length}
             </dd>
           </div>
           <div>
-            <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+            <dt className="text-[13px] text-encre-3">
               Centres
             </dt>
-            <dd className="chiffres mt-1 text-sm font-medium">
+            <dd className="donnee mt-1 text-sm font-medium">
               {organisme.centres.length}
             </dd>
           </div>
           <div>
-            <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+            <dt className="text-[13px] text-encre-3">
               Sessions
             </dt>
-            <dd className="chiffres mt-1 text-sm font-medium">
+            <dd className="donnee mt-1 text-sm font-medium">
               {organisme.formations.reduce((n, f) => n + f._count.sessions, 0)}
             </dd>
           </div>
@@ -104,31 +105,28 @@ export default async function OrganismeDetailPage({
         {organisme.formations.length > 0 && (
           <Link
             href={`/formations?f=1&permanentes=1&organisme=${organisme.id}`}
-            className="mt-4 inline-block text-sm text-marque underline-offset-2 hover:underline"
+            className={`mt-4 inline-block text-sm ${lien}`}
           >
-            Filtrer le catalogue sur cet organisme →
+            Filtrer le calendrier sur cet organisme
           </Link>
         )}
       </div>
 
-      <section className={carte}>
-        <h2 className="border-b border-bordure px-4 py-3 text-sm font-semibold">
+      <section className={cadre}>
+        <h2 className="signature border-b border-trait px-4 py-3 text-[17px] text-encre">
           Centres de formation
         </h2>
         {organisme.centres.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-texte-tenu">
+          <p className="px-4 py-6 text-sm text-encre-3">
             Aucun centre renseigné pour le moment.
           </p>
         ) : (
-          <ul className="flex flex-wrap gap-2 p-4">
+          <ul className="flex flex-wrap gap-x-6 gap-y-2 p-4 text-sm">
             {organisme.centres.map((c) => (
-              <li
-                key={c.id}
-                className="rounded-lg border border-bordure px-3 py-1.5 text-sm"
-              >
-                <span className="font-medium">{c.ville}</span>
+              <li key={c.id}>
+                <span className="text-encre">{c.ville}</span>
                 {c.codePostal && (
-                  <span className="chiffres text-texte-tenu"> {c.codePostal}</span>
+                  <span className="donnee text-encre-4"> {c.codePostal}</span>
                 )}
               </li>
             ))}
@@ -136,28 +134,32 @@ export default async function OrganismeDetailPage({
         )}
       </section>
 
-      <section className={carte}>
-        <h2 className="border-b border-bordure px-4 py-3 text-sm font-semibold">
+      <section className={cadre}>
+        <h2 className="signature border-b border-trait px-4 py-3 text-[17px] text-encre">
           Formations dispensées
         </h2>
         {organisme.formations.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-texte-tenu">
+          <p className="px-4 py-6 text-sm text-encre-3">
             Aucune formation renseignée pour le moment.
           </p>
         ) : (
-          <ul className="divide-y divide-bordure">
+          <ul className="divide-y divide-trait">
             {organisme.formations.map((f) => (
               <li key={f.id}>
                 <Link
                   href={`/formations/${f.id}`}
-                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-3 text-sm transition-colors hover:bg-surface-2"
+                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-3 text-sm transition-colors hover:bg-surface-creuse"
                 >
                   <span className="font-medium">{f.intitule}</span>
                   <span className="flex items-center gap-3">
-                    <span className="chiffres text-xs text-texte-tenu">
+                    <span className="donnee text-xs text-encre-3">
                       {f._count.sessions} session{f._count.sessions > 1 ? "s" : ""}
                     </span>
-                    {f.domaine && <Pastille domaine={f.domaine.nom} />}
+                    {f.domaine && (
+                      <span className="text-[13px] text-encre-3">
+                        {f.domaine.nom}
+                      </span>
+                    )}
                   </span>
                 </Link>
               </li>

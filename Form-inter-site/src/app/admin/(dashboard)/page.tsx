@@ -58,24 +58,24 @@ export default async function AdminDashboardPage() {
           <Link
             key={s.label}
             href={s.href}
-            className="rounded-lg border border-bordure bg-surface p-4 hover:shadow-md"
+            className="rounded-[var(--rayon)] border border-trait bg-surface p-4 hover:shadow-md"
           >
             <div className="text-2xl font-semibold">{s.value}</div>
-            <div className="text-sm text-texte-doux">{s.label}</div>
+            <div className="text-sm text-encre-2">{s.label}</div>
           </Link>
         ))}
       </div>
 
       <Link
         href="/admin/sources"
-        className={`block rounded-lg border p-6 hover:shadow-md ${
+        className={`block rounded-[var(--rayon)] border p-6 hover:shadow-md ${
           enRetard
-            ? "border-alerte/40 bg-alerte-fond"
-            : "border-bordure bg-surface"
+            ? "border-alerte/30 bg-alerte/10"
+            : "border-trait bg-surface"
         }`}
       >
         <h2 className="text-base font-semibold">Liaison backend</h2>
-        <p className="mt-1 text-sm text-texte-doux">
+        <p className="mt-1 text-sm text-encre-2">
           {libelleMode(config.mode)}
           {liaisonActive && (
             <>
@@ -86,19 +86,19 @@ export default async function AdminDashboardPage() {
             </>
           )}
         </p>
-        <p className="mt-2 text-sm text-texte-doux">
+        <p className="mt-2 text-sm text-encre-2">
           {sessionsBackend} session(s) du backend · {sessionsManuelles}{" "}
           session(s) manuelle(s)
         </p>
         {enRetard && (
           <p className="mt-2 text-sm font-medium text-alerte">
-            La dernière synchronisation réussie est ancienne — vérifiez la
+            La dernière synchronisation réussie est ancienne : vérifiez la
             liaison.
           </p>
         )}
       </Link>
 
-      <div className="rounded-lg border border-dashed border-bordure-forte p-6 text-sm text-texte-doux">
+      <div className="rounded-[var(--rayon)] border border-dashed border-trait-fort p-6 text-sm text-encre-2">
         Le catalogue se remplit par deux chemins : la liaison avec le backend de
         veille et l&apos;import de fichiers Excel/CSV. Les sessions manuelles
         terminées sont supprimées à chaque visite de cette page ou de la

@@ -13,7 +13,7 @@ export default function AdminLoginPage() {
       <div className="flex flex-col items-center gap-3 text-center">
         <span
           aria-hidden="true"
-          className="grid h-11 w-11 place-items-center rounded-xl bg-action text-lg font-bold text-action-texte"
+          className="grid h-11 w-11 place-items-center rounded-[var(--rayon)] bg-action text-lg font-bold text-action-texte"
         >
           F
         </span>
@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
           <h1 className="text-xl font-semibold tracking-tight">
             Back office
           </h1>
-          <p className="mt-1 text-sm text-texte-doux">
+          <p className="mt-1 text-sm text-encre-2">
             Réservé à l&apos;équipe PROINSEC.
           </p>
         </div>

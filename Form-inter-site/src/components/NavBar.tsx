@@ -2,51 +2,46 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Marque } from "@/components/Marques";
 
 const liens = [
-  { href: "/formations", label: "Formations" },
+  { href: "/formations", label: "Calendrier" },
   { href: "/organismes", label: "Organismes" },
 ];
 
-/**
- * Barre de navigation. Le bleu de marque n'est pas étalé en bandeau plein : il
- * sert de signe — le carré du logo et le trait sous l'onglet actif. Sur un
- * outil qu'on garde ouvert la journée, une bande de couleur en haut de chaque
- * écran fatigue plus qu'elle n'aide.
- */
 export function NavBar() {
   const chemin = usePathname();
   const actif = (href: string) => chemin === href || chemin.startsWith(href + "/");
 
   return (
-    <header className="sticky top-0 z-40 border-b border-bordure bg-surface/85 backdrop-blur-md">
-      <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
+    <header className="mx-auto w-full max-w-[78rem] px-5 pt-5 sm:px-8">
+      {/* Barre contenue, pas une rangée de liens collée au bord de la fenêtre :
+          elle est posée sur le papier comme un objet, avec la même arête que
+          les autres surfaces du site. */}
+      {/* En dessous de 640 px la barre passe sur deux lignes plutôt que de
+          pousser « Administration » hors de la fenêtre. */}
+      <div className="cadre flex flex-wrap items-center gap-x-6 gap-y-1.5 px-4 py-2.5">
         <Link
-          href="/formations"
-          className="flex shrink-0 items-center gap-2.5 text-[15px] font-semibold tracking-tight"
+          href="/"
+          className="flex items-center gap-2.5 rounded-[3px] text-[17px] whitespace-nowrap text-encre"
         >
-          <span
-            aria-hidden="true"
-            className="grid h-7 w-7 place-items-center rounded-lg bg-action text-[13px] font-bold text-action-texte"
-          >
-            F
-          </span>
-          <span className="hidden sm:inline">
-            Formations<span className="text-texte-doux"> Inter</span>
-          </span>
+          <Marque />
+          <span className="signature">Formations Inter</span>
         </Link>
 
-        <nav className="flex flex-1 items-center gap-1 text-sm">
+        <nav className="flex flex-1 items-center gap-5 text-sm">
           {liens.map((lien) => (
             <Link
               key={lien.href}
               href={lien.href}
               aria-current={actif(lien.href) ? "page" : undefined}
-              className={`relative rounded-lg px-3 py-2 font-medium transition-colors ${
+              /* L'état actif se lit dans le texte : encre pleine et graisse.
+                 Pas de point ni de barre accrochés dessous. */
+              className={
                 actif(lien.href)
-                  ? "text-texte after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:rounded-full after:bg-marque"
-                  : "text-texte-doux hover:bg-surface-2 hover:text-texte"
-              }`}
+                  ? "font-medium text-encre"
+                  : "text-encre-3 transition-colors hover:text-encre"
+              }
             >
               {lien.label}
             </Link>
@@ -55,9 +50,9 @@ export function NavBar() {
 
         <Link
           href="/admin"
-          className="rounded-lg px-3 py-2 text-sm font-medium text-texte-tenu transition-colors hover:bg-surface-2 hover:text-texte"
+          className="text-sm text-encre-4 transition-colors hover:text-encre"
         >
-          Admin
+          Administration
         </Link>
       </div>
     </header>

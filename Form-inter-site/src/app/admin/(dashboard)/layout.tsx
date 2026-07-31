@@ -11,9 +11,9 @@ export default async function AdminDashboardLayout({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-bordure pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-trait pb-4">
         <AdminNav />
-        <div className="flex items-center gap-3 text-sm text-texte-tenu">
+        <div className="flex items-center gap-3 text-sm text-encre-3">
           {admin && <span className="hidden sm:inline">{admin.email}</span>}
           <LogoutButton />
         </div>

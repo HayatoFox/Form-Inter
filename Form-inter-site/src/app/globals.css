@@ -1,205 +1,116 @@
 @import "tailwindcss";
 
 /* =============================================================================
-   Système de design — Formations Inter (PROINSEC)
+   Formations Inter — système visuel
    -----------------------------------------------------------------------------
-   Ancre de marque : le bleu PROINSEC #0072b1, l'orange #ff6900 en accent rare,
-   l'encre #1c2733 comme neutre le plus sombre — les mêmes que le site de veille
-   interne, pour que les deux outils se reconnaissent comme parents.
+   Le produit n'est pas une page de fiches, c'est un CALENDRIER : trois mille
+   sessions datées, quarante-cinq villes, relevées chaque nuit chez cinq
+   organismes. Tout part de là.
 
-   Deux principes qui expliquent la forme du fichier :
+   L'artefact de signature est « la réglure » : la densité des sessions sur
+   douze mois, dessinée à partir des vraies données. Petite sur chaque
+   formation, grande sur le premier écran, où elle tient lieu de composition.
+   Aucune autre page ne peut la porter, puisqu'elle EST ce catalogue.
 
-   1. Les composants n'écrivent jamais `dark:`. Les jetons sémantiques
-      (--surface, --texte, --bordure…) basculent ici, et `@theme inline` les
-      expose en utilitaires Tailwind. Un seul endroit à relire pour vérifier le
-      thème sombre, et aucune paire de classes à maintenir en double.
+   Trois décisions tiennent le reste.
 
-   2. Les couleurs de domaine ne sont pas quatorze palettes écrites à la main
-      mais quatorze teintes en oklch. Clarté et chroma sont fixés, seule la
-      teinte change : les pastilles ont donc toutes le même poids visuel et le
-      même contraste, ce qu'on ne sait pas garantir avec des hex choisis un par
-      un.
+   1. Encre sur papier. Neutres légèrement chauds, volontairement à l'écart des
+      trois défauts connus : ni crème, ni le gris #f3f4f6 des kits, ni le
+      charbon bleuté des thèmes sombres. Le noir de ce site est chaud (#131211,
+      rouge > bleu), il appartient à cette marque.
+
+   2. Un seul accent, le bleu PROINSEC, et il ne remplit jamais un bouton. Il
+      signale ce qui est vivant : un lien, le focus, le mois en cours dans la
+      réglure. L'action principale est en encre pleine, pas en couleur vive.
+
+   3. Une seule famille par rôle. Gambarino porte la signature (marque, titres,
+      grands nombres) ; le corps est en system-ui, vraiment neutre ; les
+      données — dates, tarifs, codes, compteurs — sont en chasse fixe système,
+      parce que ce sont des données et pas un costume.
    ========================================================================== */
 
 :root {
-  /* --- Bleu PROINSEC (600 = la couleur de marque exacte) ------------------ */
-  --marque-50: #eff8fd;
-  --marque-100: #dceffa;
-  --marque-200: #b9dff4;
-  --marque-300: #82c7ea;
-  --marque-400: #44a9dc;
-  --marque-500: #1c8cc9;
-  --marque-600: #0072b1;
-  --marque-700: #045b8f;
-  --marque-800: #084d76;
-  --marque-900: #0d4163;
-  --marque-950: #082942;
+  /* Papier et encre. Chaud, sans virer au crème. */
+  --papier: #faf9f7;
+  --surface: #ffffff;
+  --surface-creuse: #f2f0ec;
 
-  /* --- Orange PROINSEC (500 = la couleur de marque exacte) ---------------- */
-  --accent-50: #fff5ed;
-  --accent-100: #ffe8d4;
-  --accent-200: #ffcda8;
-  --accent-300: #ffa970;
-  --accent-400: #ff7a36;
-  --accent-500: #ff6900;
-  --accent-600: #f04d00;
-  --accent-700: #c73802;
+  --encre: #191714;
+  --encre-2: #55514a;
+  --encre-3: #8b867d;
+  --encre-4: #b5b0a6;
 
-  /* --- Neutres : une échelle légèrement bleutée, pas un gris pur ---------- */
-  --neutre-0: #ffffff;
-  --neutre-50: #f6f8fa;
-  --neutre-100: #eceff3;
-  --neutre-200: #d9dfe6;
-  --neutre-300: #b8c2ce;
-  --neutre-400: #8f9dae;
-  --neutre-500: #6d7d91;
-  --neutre-600: #566578;
-  --neutre-700: #465262;
-  --neutre-800: #3b4553;
-  --neutre-900: #1c2733;
-  --neutre-950: #121a23;
+  --trait: #e4e0d9;
+  --trait-fort: #cfc9be;
 
-  /* --- Jetons sémantiques (thème clair) ---------------------------------- */
-  --fond: var(--neutre-50);
-  --surface: var(--neutre-0);
-  --surface-2: var(--neutre-50);
-  --surface-active: var(--marque-50);
+  /* Bleu PROINSEC. Un accent, jamais un remplissage. */
+  --vif: #0069a8;
+  --vif-doux: #0069a812;
 
-  --bordure: var(--neutre-200);
-  --bordure-forte: var(--neutre-300);
+  --alerte: #a8500f;
+  --erreur: #a32b22;
+  --erreur-doux: #a32b220f;
 
-  --texte: var(--neutre-900);
-  --texte-doux: var(--neutre-600);
-  --texte-tenu: var(--neutre-400);
-  --texte-inverse: var(--neutre-0);
+  /* L'action est en encre : contraste honnête, pas de pastille saturée. */
+  --action: var(--encre);
+  --action-texte: #faf9f7;
 
-  --marque: var(--marque-600);
-  --marque-survol: var(--marque-700);
-  --marque-douce: var(--marque-50);
-  --accent: var(--accent-600);
-  --accent-douce: var(--accent-50);
-
-  /* Le bouton porte son propre fond : il garde le bleu de marque plein dans
-     les deux thèmes, là où --marque s'éclaircit en sombre pour rester lisible
-     en texte. Blanc sur #0072b1 = 5,3:1, confortable partout. */
-  --action: var(--marque-600);
-  --action-survol: var(--marque-700);
-  --action-texte: #ffffff;
-
-  --succes: #1d7a3e;
-  --succes-fond: #e6f4ea;
-  --alerte: #b96a00;
-  --alerte-fond: #fdf3e2;
-  --erreur: #c22e2e;
-  --erreur-fond: #fceceb;
-
-  --anneau: var(--marque-500);
-
-  /* Ombres basses : l'élévation hiérarchise, elle ne décore pas. */
-  --ombre-1: 0 1px 2px 0 rgb(28 39 51 / 0.05);
-  --ombre-2: 0 2px 4px -1px rgb(28 39 51 / 0.07), 0 1px 2px -1px rgb(28 39 51 / 0.04);
-  --ombre-3: 0 8px 20px -6px rgb(28 39 51 / 0.14), 0 2px 6px -2px rgb(28 39 51 / 0.06);
-
-  /* Clarté et chroma des pastilles de domaine, thème clair. */
-  --pastille-l-fond: 0.955;
-  --pastille-c-fond: 0.035;
-  --pastille-l-bord: 0.885;
-  --pastille-c-bord: 0.055;
-  --pastille-l-texte: 0.44;
-  --pastille-c-texte: 0.115;
-  --pastille-l-point: 0.62;
-  --pastille-c-point: 0.16;
+  --rayon: 0.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --fond: #0d141c;
-    --surface: #161f29;
-    --surface-2: #1b2632;
-    --surface-active: #10293a;
+    --papier: #131211;
+    --surface: #1b1918;
+    --surface-creuse: #242220;
 
-    --bordure: #2a3644;
-    --bordure-forte: #3b4b5c;
+    --encre: #f2efe9;
+    --encre-2: #a9a49a;
+    --encre-3: #7c766c;
+    --encre-4: #55504a;
 
-    --texte: #e7edf3;
-    --texte-doux: #a3b2c2;
-    --texte-tenu: #71839a;
-    --texte-inverse: var(--neutre-900);
+    --trait: #2b2825;
+    --trait-fort: #3d3934;
 
-    /* Le bleu de marque devient illisible sur fond sombre : on remonte de deux
-       crans dans la même échelle — l'identité tient, le contraste revient. */
-    --marque: var(--marque-400);
-    --marque-survol: var(--marque-300);
-    --marque-douce: #10293a;
-    --accent: var(--accent-400);
-    --accent-douce: #2e1a0c;
+    --vif: #6cb6e8;
+    --vif-doux: #6cb6e814;
 
-    /* Le fond du bouton ne bouge pas : c'est en s'éclaircissant au survol,
-       et non en s'assombrissant, qu'il répond juste sur fond sombre. */
-    --action: var(--marque-600);
-    --action-survol: var(--marque-500);
+    --alerte: #d9994e;
+    --erreur: #e08279;
+    --erreur-doux: #e0827914;
 
-    --succes: #57c785;
-    --succes-fond: #10291b;
-    --alerte: #e0a44a;
-    --alerte-fond: #2e2110;
-    --erreur: #f08a86;
-    --erreur-fond: #2e1616;
-
-    --anneau: var(--marque-400);
-
-    --ombre-1: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-    --ombre-2: 0 2px 4px -1px rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-    --ombre-3: 0 8px 20px -6px rgb(0 0 0 / 0.6), 0 2px 6px -2px rgb(0 0 0 / 0.4);
-
-    --pastille-l-fond: 0.255;
-    --pastille-c-fond: 0.045;
-    --pastille-l-bord: 0.34;
-    --pastille-c-bord: 0.06;
-    --pastille-l-texte: 0.83;
-    --pastille-c-texte: 0.09;
-    --pastille-l-point: 0.72;
-    --pastille-c-point: 0.14;
+    --action: #f2efe9;
+    --action-texte: #131211;
   }
 }
 
 @theme inline {
-  --color-fond: var(--fond);
+  --color-papier: var(--papier);
   --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-surface-active: var(--surface-active);
+  --color-surface-creuse: var(--surface-creuse);
 
-  --color-bordure: var(--bordure);
-  --color-bordure-forte: var(--bordure-forte);
+  --color-encre: var(--encre);
+  --color-encre-2: var(--encre-2);
+  --color-encre-3: var(--encre-3);
+  --color-encre-4: var(--encre-4);
 
-  --color-texte: var(--texte);
-  --color-texte-doux: var(--texte-doux);
-  --color-texte-tenu: var(--texte-tenu);
-  --color-texte-inverse: var(--texte-inverse);
+  --color-trait: var(--trait);
+  --color-trait-fort: var(--trait-fort);
 
-  --color-marque: var(--marque);
-  --color-marque-survol: var(--marque-survol);
-  --color-marque-douce: var(--marque-douce);
-  --color-accent: var(--accent);
-  --color-accent-douce: var(--accent-douce);
+  --color-vif: var(--vif);
+  --color-vif-doux: var(--vif-doux);
+  --color-alerte: var(--alerte);
+  --color-erreur: var(--erreur);
+  --color-erreur-doux: var(--erreur-doux);
 
   --color-action: var(--action);
-  --color-action-survol: var(--action-survol);
   --color-action-texte: var(--action-texte);
 
-  --color-succes: var(--succes);
-  --color-succes-fond: var(--succes-fond);
-  --color-alerte: var(--alerte);
-  --color-alerte-fond: var(--alerte-fond);
-  --color-erreur: var(--erreur);
-  --color-erreur-fond: var(--erreur-fond);
+  --radius-cadre: var(--rayon);
 
-  --shadow-carte: var(--ombre-1);
-  --shadow-eleve: var(--ombre-2);
-  --shadow-flottant: var(--ombre-3);
-
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-signature: var(--font-gambarino), ui-serif, Georgia, serif;
+  --font-sans: system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* --- Base ----------------------------------------------------------------- */
@@ -207,64 +118,121 @@
 html {
   color-scheme: light dark;
   -webkit-text-size-adjust: 100%;
+  /* `clip` plutôt que `hidden` : on empêche la barre horizontale que provoque
+     une pleine largeur en `vw`, sans créer de conteneur de défilement (ce qui
+     casserait un `position: sticky` à l'intérieur). */
+  overflow-x: clip;
+}
+
+/* Sortir de la mesure du texte pour occuper toute la fenêtre. La réglure du
+   premier écran s'en sert : le titre reste dans la colonne, l'artefact la
+   traverse. C'est ce décalage de plan qui donne sa profondeur à la page. */
+.pleine-largeur {
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
 }
 
 body {
-  background: var(--fond);
-  color: var(--texte);
-  /* Le squelette forçait Arial ici, ce qui annulait la police chargée par le
-     layout : la variable Geist reprend la main, avec un repli système. */
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  background: var(--papier);
+  color: var(--encre);
+  font-family: system-ui, sans-serif;
 }
 
-/* Un anneau de focus unique, visible sur toutes les surfaces, jamais retiré :
+/* Le papier a un grain. C'est une vraie texture de fond — bruit fractal fin,
+   à peine au-dessus du seuil de perception — et non un aplat : la page est un
+   substrat imprimé, pas un remplissage. Elle est fixe (un grain qui défile
+   fourmille), sous tout le contenu, et sans interaction possible : le texte et
+   les marques restent nets par-dessus. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  opacity: 0.055;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* Sur l'encre, le grain doit éclairer, pas assombrir. */
+  body::before {
+    filter: invert(1);
+    opacity: 0.04;
+  }
+}
+
+/* Le focus est la seule chose que le bleu remplit, et il ne disparaît jamais :
    le back office se remplit beaucoup au clavier. */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--anneau);
+  outline: 2px solid var(--vif);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
-/* Dates, durées, tarifs, compteurs : la chasse fixe les empêche de trembler
-   d'une ligne à l'autre dans des listes de plusieurs milliers d'entrées. */
-.chiffres {
+::selection {
+  background: var(--vif);
+  color: #fff;
+}
+
+/* La signature. Une seule fonte la porte, et seulement elle. */
+.signature {
+  font-family: var(--font-gambarino), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+/* Dates, tarifs, codes, compteurs : ce sont des données, la chasse fixe y est
+   à sa place. Elle ne sort pas de ce rôle. */
+.donnee {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "ss01";
+  letter-spacing: -0.01em;
 }
 
-/* --- Pastille de domaine -------------------------------------------------- */
+/* --- Le cadre ------------------------------------------------------------- */
 
-/* Signature visuelle du site : la même pastille dans la carte, le filtre, la
-   fiche et la modale. Une seule variable (--h, la teinte) pilote ses quatre
-   couleurs. */
-.pastille {
-  --h: 245;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  border-radius: 9999px;
-  border: 1px solid oklch(var(--pastille-l-bord) var(--pastille-c-bord) var(--h));
-  background: oklch(var(--pastille-l-fond) var(--pastille-c-fond) var(--h));
-  color: oklch(var(--pastille-l-texte) var(--pastille-c-texte) var(--h));
-  padding: 0.125rem 0.5rem 0.125rem 0.4375rem;
-  font-size: 0.75rem;
-  line-height: 1.125rem;
-  font-weight: 500;
-  white-space: nowrap;
+/* Pas d'ombre, pas de contour contrasté : la surface se détache du papier par
+   sa valeur, et son bord est de sa propre couleur. On sent une arête, on ne
+   voit pas un trait dessiné. */
+.cadre {
+  background: var(--surface);
+  border-radius: var(--rayon);
+  box-shadow: inset 0 0 0 1px var(--trait);
 }
 
-.pastille::before {
-  content: "";
-  width: 0.375rem;
-  height: 0.375rem;
-  border-radius: 9999px;
-  background: oklch(var(--pastille-l-point) var(--pastille-c-point) var(--h));
-  flex: none;
-}
+/* --- La réglure ----------------------------------------------------------- */
 
-/* Le même repère, réduit à un filet : liseré gauche des cartes et des lignes. */
-.liseret-domaine {
-  --h: 245;
-  box-shadow: inset 3px 0 0 0 oklch(var(--pastille-l-point) var(--pastille-c-point) var(--h));
+/* Géométrie inventée pour ce site : un fût à sommet plat dont le pied est
+   chanfreiné des deux côtés. Reprise à l'identique de la carte au premier
+   écran, c'est elle qui signe les pages. */
+.reglure-fut {
+  fill: var(--encre-4);
+  transition: fill 140ms ease;
+}
+.reglure-fut[data-charge="1"] { fill: var(--encre-3); }
+.reglure-fut[data-charge="2"] { fill: var(--encre-2); }
+.reglure-fut[data-charge="3"] { fill: var(--encre); }
+.reglure-fut[data-courant="oui"] { fill: var(--vif); }
+
+/* La seule interaction inventée du site, et elle porte sur l'artefact :
+   survoler une colonne fait reculer l'année entière d'un ton et avance le mois
+   visé. On ne met pas en valeur en ajoutant quelque chose — on retire le reste.
+   Rien n'est caché, rien n'apparaît : ce sont des valeurs qui se déplacent sur
+   du contenu déjà à l'écran. */
+.reglure:hover .reglure-fut { fill: var(--encre-4); }
+.reglure:hover .reglure-libelle { fill: var(--encre-4); }
+.reglure .reglure-mois:hover .reglure-fut { fill: var(--vif); }
+.reglure .reglure-mois:hover .reglure-libelle { fill: var(--vif); }
+
+.reglure-libelle { transition: fill 140ms ease; }
+
+.reglure-socle {
+  stroke: var(--trait-fort);
+  stroke-width: 1;
+  stroke-linecap: round;
 }
 
 /* --- Confort -------------------------------------------------------------- */

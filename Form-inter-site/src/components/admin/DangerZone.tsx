@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Modal } from "@/components/ui/Modal";
+import { Dialogue } from "@/components/ui/Dialogue";
 import { wipeAllData } from "@/app/admin/(dashboard)/actions";
 
 const CONFIRM_WORD = "SUPPRIMER";
@@ -33,7 +33,7 @@ export function DangerZone({
   }
 
   return (
-    <div className="rounded-lg border border-erreur/30 bg-erreur-fond p-6">
+    <div className="rounded-[var(--rayon)] border border-erreur/30 bg-erreur-doux p-6">
       <h2 className="text-sm font-semibold text-erreur">
         Zone dangereuse
       </h2>
@@ -44,20 +44,24 @@ export function DangerZone({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3 rounded-md bg-erreur px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+        className="mt-3 rounded-[var(--rayon)] bg-erreur px-4 py-2 text-sm font-medium text-white hover:opacity-90"
       >
         Supprimer toutes les données
       </button>
 
-      {open && (
-        <Modal onClose={close} title="Confirmer la suppression">
+      <Dialogue
+        ouvert={open}
+        onFermer={close}
+        titre="Supprimer toutes les données ?"
+        description="Cette action est irréversible."
+      >
           <h3 className="text-lg font-semibold text-erreur">
             Supprimer toutes les données ?
           </h3>
-          <p className="mt-2 text-sm text-texte-doux dark:text-texte-tenu">
+          <p className="mt-2 text-sm text-encre-2 dark:text-encre-3">
             Vous êtes sur le point de supprimer définitivement :
           </p>
-          <ul className="mt-2 list-disc pl-5 text-sm text-texte-doux dark:text-texte-tenu">
+          <ul className="mt-2 list-disc pl-5 text-sm text-encre-2 dark:text-encre-3">
             <li>{counts.organismes} organisme(s) et leurs centres</li>
             <li>{counts.formations} formation(s)</li>
             <li>{counts.sessions} session(s)</li>
@@ -65,20 +69,20 @@ export function DangerZone({
           <p className="mt-3 text-sm font-medium text-erreur">
             Cette action est irréversible.
           </p>
-          <label className="mt-4 block text-xs font-medium tracking-wide text-texte-doux uppercase">
+          <label className="mt-4 block text-[13px] text-encre-3">
             Tapez {CONFIRM_WORD} pour confirmer
           </label>
           <input
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             autoFocus
-            className="mt-1.5 w-full rounded-lg border border-bordure bg-surface px-3 py-2 text-sm text-texte placeholder:text-texte-tenu transition-colors hover:border-bordure-forte"
+            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
           />
           <div className="mt-4 flex justify-end gap-3">
             <button
               type="button"
               onClick={close}
-              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 border border-bordure-forte bg-surface text-texte hover:bg-surface-2"
+              className="inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] bg-surface-creuse px-4 py-2 text-sm font-medium text-encre transition-colors hover:bg-trait disabled:pointer-events-none disabled:opacity-40"
             >
               Annuler
             </button>
@@ -86,13 +90,12 @@ export function DangerZone({
               type="button"
               onClick={handleConfirm}
               disabled={!canConfirm || loading}
-              className="rounded-md bg-erreur px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-[var(--rayon)] bg-erreur px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? "Suppression…" : "Supprimer définitivement"}
             </button>
           </div>
-        </Modal>
-      )}
+        </Dialogue>
     </div>
   );
 }

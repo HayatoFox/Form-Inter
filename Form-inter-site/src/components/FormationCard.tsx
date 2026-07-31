@@ -3,10 +3,8 @@
 import { useState } from "react";
 import type { Prisma } from "@/generated/prisma/client";
 import { SessionsModal } from "@/components/SessionsModal";
-import { Pastille } from "@/components/ui/Pastille";
-import { styleDomaine } from "@/lib/domaines";
+import { Reglure } from "@/components/Reglure";
 import { debutDuJour, formatDateCourt, formatDuree } from "@/lib/dates";
-import { carteInteractive } from "@/lib/ui";
 
 export type FormationWithRelations = Prisma.FormationGetPayload<{
   include: {
@@ -18,8 +16,8 @@ export type FormationWithRelations = Prisma.FormationGetPayload<{
 
 export type SessionWithCentre = FormationWithRelations["sessions"][number];
 
-// Les sessions à entrée/sortie permanente n'ont pas de date : elles passent
-// après les sessions datées, dans l'ordre d'affichage comme dans le tri.
+// Les sessions à entrée permanente n'ont pas de date : elles passent après les
+// sessions datées, dans l'ordre d'affichage comme dans le tri.
 export function trierSessions(
   sessions: SessionWithCentre[]
 ): SessionWithCentre[] {
@@ -31,23 +29,9 @@ export function trierSessions(
   });
 }
 
-// L'orange de marque est rare et signifiant : il ne sort que lorsque la
-// disponibilité se tend. Le reste des mentions passe en gris.
-const TENDUE = /derni|complet|limit|dispo.*restant|places? restante/i;
-
-function Fait({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 ${className}`}>
-      {children}
-    </span>
-  );
-}
+// L'unique endroit où une couleur signale quelque chose sur une carte : quand
+// la place manque vraiment. Un ton brûlé, pas un accent saturé.
+const TENDUE = /derni|complet|limit|places? restante/i;
 
 export function FormationCard({
   formation,
@@ -56,103 +40,96 @@ export function FormationCard({
   formation: FormationWithRelations;
   sessionsFiltered?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const duree = formatDuree(formation.dureeValeur, formation.dureeUnite);
-  const domaine = formation.domaine?.nom ?? null;
+  const [ouverte, setOuverte] = useState(false);
 
-  const sortedSessions = trierSessions(formation.sessions);
-  // Hors recherche filtrée, on ne met en avant que les sessions à venir ; avec
-  // des filtres actifs, la session la plus proche du résultat suffit, même
-  // passée, puisque l'utilisateur a explicitement ciblé cette période.
+  const sessions = trierSessions(formation.sessions);
   const aujourdhui = debutDuJour();
-  const apercu = sessionsFiltered
-    ? sortedSessions[0]
-    : (sortedSessions.find((s) => s.dateDebut && s.dateDebut >= aujourdhui) ??
-      sortedSessions.find((s) => !s.dateDebut));
+  const prochaine = sessionsFiltered
+    ? sessions[0]
+    : (sessions.find((s) => s.dateDebut && s.dateDebut >= aujourdhui) ??
+      sessions.find((s) => !s.dateDebut));
 
-  const tarif = apercu?.tarif ?? sortedSessions.find((s) => s.tarif)?.tarif ?? null;
-  const dispoTendue = apercu?.placesInfo ? TENDUE.test(apercu.placesInfo) : false;
+  const duree = formatDuree(formation.dureeValeur, formation.dureeUnite);
+  const tarif = prochaine?.tarif ?? sessions.find((s) => s.tarif)?.tarif ?? null;
+  const tendue = prochaine?.placesInfo
+    ? TENDUE.test(prochaine.placesInfo)
+    : false;
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => setOuverte(true)}
         aria-haspopup="dialog"
-        style={styleDomaine(domaine)}
-        className={`${carteInteractive} liseret-domaine group flex w-full flex-col gap-2.5 p-4 pl-5 text-left`}
+        /* Pas d'élévation au survol, pas d'ombre : l'arête se raffermit et la
+           surface se creuse d'un cran. Tonal, posé. */
+        className="cadre group flex w-full flex-col gap-3 p-4 text-left transition-[box-shadow,background-color] duration-150 hover:bg-surface-creuse hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
       >
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-[15px] leading-snug font-semibold tracking-tight text-texte transition-colors group-hover:text-marque">
+        <div>
+          <h3 className="signature text-[17px] leading-[1.25] text-encre">
             {formation.intitule}
           </h3>
-          <Pastille domaine={domaine} className="mt-0.5 shrink-0" />
+          {/* Plusieurs organismes proposent le même intitulé : « AIPR
+              Concepteur » revient quatre fois d'affilée dans un tri
+              alphabétique. L'organisme est le seul discriminant, il passe donc
+              devant le domaine. */}
+          <p className="mt-1 text-[13px]">
+            <span className="text-encre-2">{formation.organisme.nom}</span>
+            {formation.domaine && (
+              <span className="text-encre-4"> / {formation.domaine.nom}</span>
+            )}
+          </p>
         </div>
 
-        {/* Plusieurs organismes proposent le même intitulé — « AIPR Concepteur »
-            revient quatre fois d'affilée dans un tri alphabétique. L'organisme
-            est alors le seul discriminant : il est mis en avant plutôt que
-            traité comme une mention secondaire. */}
-        <p className="-mt-1 text-sm">
-          <span className="font-medium text-texte-doux">
-            {formation.organisme.nom}
-          </span>
-          {formation.typeFormation && (
-            <span className="text-texte-tenu"> · {formation.typeFormation}</span>
-          )}
-        </p>
+        {/* La réglure : la question qu'on se pose devant un catalogue, c'est
+            « ça tourne quand ? ». Elle y répond sans ouvrir la fiche. */}
+        <Reglure sessions={sessions} hauteur={120} />
 
-        {apercu ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
-            <Fait className="font-medium text-texte">
-              <span aria-hidden="true" className="text-texte-tenu">
-                ▸
+        {/* Le bloc de données est ancré en bas ET de hauteur fixe : trois
+            lignes, toujours, même quand la troisième est vide. D'une carte à
+            l'autre d'une même rangée, la date, le tarif, la ville et la durée
+            tombent exactement sur les mêmes horizontales, quelle que soit la
+            longueur de l'intitulé au-dessus ou la présence d'une alerte en
+            dessous. Une grille de cartes qui se compare doit s'aligner.
+
+            Pas de filet ici : le socle de la réglure juste au-dessus est déjà
+            la ligne, en tracer une seconde à dix pixels serait de la structure
+            décorative. */}
+        <div className="mt-auto text-[13px]">
+          <div className="flex items-baseline justify-between gap-3">
+            {prochaine ? (
+              <span className="donnee truncate text-encre">
+                {prochaine.dateDebut
+                  ? formatDateCourt(prochaine.dateDebut)
+                  : "entrée permanente"}
               </span>
-              {apercu.dateDebut ? (
-                <span className="chiffres">
-                  {formatDateCourt(apercu.dateDebut)}
-                </span>
-              ) : (
-                "Entrée permanente"
-              )}
-            </Fait>
-            {apercu.centre && (
-              <Fait className="text-texte-doux">{apercu.centre.ville}</Fait>
-            )}
-            {duree && (
-              <Fait className="chiffres text-texte-doux">{duree}</Fait>
+            ) : (
+              <span className="text-encre-4">aucune date</span>
             )}
             {tarif && (
-              <Fait className="chiffres ml-auto font-medium text-texte">
-                {tarif}
-              </Fait>
+              <span className="donnee shrink-0 text-encre">{tarif}</span>
             )}
           </div>
-        ) : (
-          <p className="text-sm text-texte-tenu">Aucune session planifiée</p>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-bordure pt-2.5 text-xs">
-          <span className={dispoTendue ? "font-medium text-accent" : "text-texte-tenu"}>
-            {apercu?.placesInfo ?? " "}
-          </span>
-          {sortedSessions.length > 0 && (
-            <span className="font-medium text-texte-doux transition-colors group-hover:text-marque">
-              <span className="chiffres">{sortedSessions.length}</span> session
-              {sortedSessions.length > 1 ? "s" : ""}
-              {sessionsFiltered ? " correspondantes" : ""}
-              <span aria-hidden="true"> →</span>
+          <div className="mt-0.5 flex items-baseline justify-between gap-3">
+            <span className="truncate text-encre-2">
+              {prochaine?.centre?.ville ?? "lieu à confirmer"}
             </span>
-          )}
+            {duree && (
+              <span className="donnee shrink-0 text-encre-4">{duree}</span>
+            )}
+          </div>
+          <p className="mt-1 min-h-[1.15rem] text-alerte">
+            {tendue ? prochaine?.placesInfo : ""}
+          </p>
         </div>
       </button>
 
-      {open && (
+      {ouverte && (
         <SessionsModal
           formation={formation}
-          sessions={sortedSessions}
+          sessions={sessions}
           filtered={sessionsFiltered}
-          onClose={() => setOpen(false)}
+          onClose={() => setOuverte(false)}
         />
       )}
     </>

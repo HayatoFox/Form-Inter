@@ -4,9 +4,11 @@ import { Prisma } from "@/generated/prisma/client";
 import { SearchFilters } from "@/components/SearchFilters";
 import { FormationCard } from "@/components/FormationCard";
 import { Pagination } from "@/components/ui/Pagination";
+import { Nombre } from "@/components/Nombre";
 import { cleanupPastSessions } from "@/lib/session-cleanup";
 import { planifierSyncAuto } from "@/lib/backend/auto";
 import { debutDuJour, parseDateISO } from "@/lib/dates";
+import { lien } from "@/lib/ui";
 
 // Le catalogue bouge à chaque synchronisation, et la page nettoie les sessions
 // manuelles périmées à l'affichage : rien à préparer au build — où il n'y a de
@@ -15,7 +17,6 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
 
-const nombre = new Intl.NumberFormat("fr-FR");
 
 type SearchParams = {
   q?: string;
@@ -162,16 +163,17 @@ export default async function FormationsPage({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Formations</h1>
-        <p className="text-sm text-texte-doux">
-          <span className="chiffres font-medium text-texte">
-            {nombre.format(total)}
-          </span>{" "}
-          formation{total > 1 ? "s" : ""}
-          <span className="text-texte-tenu"> · </span>
-          <span className="chiffres font-medium text-texte">
-            {nombre.format(totalSessions)}
-          </span>{" "}
+        <h1 className="signature text-[26px] leading-tight text-encre">
+          Calendrier
+        </h1>
+        {/* Une formation regroupe toutes ses dates et tous ses lieux : le
+            catalogue compte donc bien moins de formations que de sessions.
+            Afficher les deux évite de croire à des données manquantes en
+            comparant avec le site de veille, qui compte des sessions. */}
+        <p className="text-sm text-encre-3">
+          <Nombre valeur={total} className="donnee text-encre" />{" "}
+          formation{total > 1 ? "s" : ""}, {" "}
+          <Nombre valeur={totalSessions} className="donnee text-encre" />{" "}
           session{totalSessions > 1 ? "s" : ""}
         </p>
       </div>
@@ -193,14 +195,14 @@ export default async function FormationsPage({
       />
 
       {formations.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-bordure-forte px-6 py-14 text-center">
-          <p className="text-sm font-medium text-texte">
-            Aucune formation ne correspond à ces critères.
+        <div className="cadre px-6 py-16 text-center">
+          <p className="signature text-[20px] text-encre">
+            Rien ne correspond à ces critères.
           </p>
-          <p className="mx-auto mt-1.5 max-w-md text-sm text-texte-doux">
+          <p className="mx-auto mt-2 max-w-md text-sm text-encre-2">
             Élargissez la période, retirez un filtre, ou{" "}
-            <Link href="/formations" className="text-marque underline-offset-2 hover:underline">
-              repartez de la liste complète
+            <Link href="/formations" className={lien}>
+              repartez du calendrier complet
             </Link>
             .
           </p>

@@ -1,18 +1,17 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { Pastille } from "@/components/ui/Pastille";
+import { Reglure } from "@/components/Reglure";
+import { Nombre } from "@/components/Nombre";
 import { debutDuJour } from "@/lib/dates";
-import { boutonPrimaire, boutonSecondaire, carte, champ } from "@/lib/ui";
+import { action, champ, lien } from "@/lib/ui";
 
-// Les compteurs et les domaines viennent de la base : la page suit le
-// catalogue, elle n'est pas figée au build.
+// Les compteurs et la réglure viennent de la base : la page suit le catalogue,
+// elle n'est pas figée au build.
 export const dynamic = "force-dynamic";
 
-const nombre = new Intl.NumberFormat("fr-FR");
-
-export default async function Home() {
+export default async function Accueil() {
   const aujourdhui = debutDuJour();
-  const sessionsAVenir = {
+  const aVenir = {
     OR: [
       { dateDebut: null },
       { dateFin: { gte: aujourdhui } },
@@ -20,10 +19,13 @@ export default async function Home() {
     ],
   };
 
-  const [nbFormations, nbSessions, nbOrganismes, nbVilles, domaines] =
+  const [sessions, nbFormations, nbOrganismes, nbVilles, domaines] =
     await Promise.all([
-      prisma.formation.count({ where: { sessions: { some: sessionsAVenir } } }),
-      prisma.session.count({ where: sessionsAVenir }),
+      prisma.session.findMany({
+        where: aVenir,
+        select: { dateDebut: true },
+      }),
+      prisma.formation.count({ where: { sessions: { some: aVenir } } }),
       prisma.organisme.count({ where: { formations: { some: {} } } }),
       prisma.centre
         .findMany({ select: { ville: true }, distinct: ["ville"] })
@@ -34,90 +36,112 @@ export default async function Home() {
       }),
     ]);
 
-  const domainesPeuples = domaines
+  const peuples = domaines
     .filter((d) => d._count.formations > 0)
     .sort((a, b) => b._count.formations - a._count.formations);
 
-  const chiffres = [
-    { valeur: nbSessions, libelle: "sessions à venir" },
-    { valeur: nbFormations, libelle: "formations" },
-    { valeur: nbOrganismes, libelle: "organismes" },
-    { valeur: nbVilles, libelle: "villes" },
-  ];
-
   return (
-    <div className="flex flex-col gap-10 py-6">
-      <section className="flex flex-col items-center gap-5 text-center">
-        <h1 className="max-w-3xl text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
-          Toutes les sessions inter-entreprises,{" "}
-          <span className="text-marque">au même endroit</span>
-        </h1>
-        <p className="max-w-xl text-[15px] leading-relaxed text-texte-doux text-pretty">
-          Le catalogue des organismes de formation partenaires, relevé chaque
-          jour : domaine, ville, dates, durée et tarif.
-        </p>
+    <div className="flex flex-col gap-14 py-6">
+      {/* Le premier écran n'est pas un empilement titre / sous-titre / boutons.
+          C'est la donnée elle-même, à l'échelle : le nombre de sessions tient
+          lieu de titre, et la réglure de l'année occupe toute la largeur. Ce
+          que le site montre, c'est un calendrier. */}
+      <section>
+        {/* Un seul bloc de texte, ancré à gauche, au-dessus d'un artefact qui
+            traverse la page : le titre et sa phrase se tiennent, au lieu d'être
+            plaqués aux deux bords avec un vide au milieu. */}
+        <div className="max-w-2xl">
+          <h1 className="signature text-[clamp(2.75rem,7vw,4.75rem)] leading-[0.95] text-encre">
+            <Nombre valeur={sessions.length} /> sessions
+          </h1>
+          <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-encre-2">
+            à venir chez{" "}
+            <Link href="/organismes" className={lien}>
+              {nbOrganismes} organismes
+            </Link>
+            , dans {nbVilles} villes. Relevées chaque nuit, réparties comme ceci
+            sur les douze prochains mois.
+          </p>
+        </div>
 
-        {/* Chercher est l'action première : le champ est dans la page, pas
-            derrière un bouton qui mène à un autre écran. */}
-        <form
-          method="get"
-          action="/formations"
-          className="flex w-full max-w-xl flex-col gap-2 sm:flex-row"
-        >
+        {/* La réglure sort de la mesure et traverse la fenêtre : le titre
+            appartient à la colonne de texte, l'artefact appartient à la page.
+            C'est le seul élément qui franchit cette limite, et c'est lui qui
+            donne son relief au premier écran. */}
+        <div className="pleine-largeur mt-9 px-5 sm:px-8">
+          {/* Deux jeux de proportions pour la même donnée. Le repère de la
+              réglure fait 1000 unités de large : à 390 px de fenêtre, les
+              proportions du bureau donneraient une frise de soixante pixels de
+              haut aux légendes illisibles. Un seul des deux est affiché, donc
+              un seul est exposé aux lecteurs d'écran. */}
+          <div className="sm:hidden">
+            <Reglure
+              sessions={sessions}
+              hauteur={330}
+              remplissage={0.5}
+              libelles
+              tailleLibelle={34}
+            />
+          </div>
+          <div className="hidden sm:block">
+            <Reglure
+              sessions={sessions}
+              hauteur={170}
+              remplissage={0.46}
+              libelles
+              tailleLibelle={13}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="max-w-2xl">
+        <form method="get" action="/formations" className="flex gap-2">
           <input type="hidden" name="f" value="1" />
           <input type="hidden" name="permanentes" value="1" />
           <label htmlFor="q-accueil" className="sr-only">
-            Rechercher une formation
+            Chercher une formation
           </label>
           <input
             id="q-accueil"
             name="q"
             type="search"
-            placeholder="CACES, habilitation électrique, SST…"
+            placeholder="CACES, habilitation électrique, SST"
             className={`${champ} h-11 flex-1 text-[15px]`}
           />
-          <button type="submit" className={`${boutonPrimaire} h-11 px-6`}>
-            Rechercher
+          <button type="submit" className={`${action} h-11 px-5`}>
+            Chercher
           </button>
         </form>
-
-        <div className="flex flex-wrap justify-center gap-3">
-          <Link href="/formations" className={boutonSecondaire}>
-            Parcourir le catalogue
+        <p className="mt-2.5 text-sm text-encre-3">
+          ou{" "}
+          <Link href="/formations" className={lien}>
+            parcourir les <Nombre valeur={nbFormations} /> formations
           </Link>
-          <Link href="/organismes" className={boutonSecondaire}>
-            Voir les organismes
-          </Link>
-        </div>
+          .
+        </p>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {chiffres.map((c) => (
-          <div key={c.libelle} className={`${carte} px-4 py-3.5 text-center`}>
-            <div className="chiffres text-2xl font-semibold tracking-tight">
-              {nombre.format(c.valeur)}
-            </div>
-            <div className="mt-0.5 text-xs text-texte-doux">{c.libelle}</div>
-          </div>
-        ))}
-      </section>
-
-      {domainesPeuples.length > 0 && (
-        <section className="flex flex-col items-center gap-4">
-          <h2 className="text-xs font-medium tracking-wide text-texte-tenu uppercase">
-            Entrer par domaine
-          </h2>
-          <div className="flex flex-wrap justify-center gap-2">
-            {domainesPeuples.map((d) => (
-              <Link
-                key={d.id}
-                href={`/formations?f=1&permanentes=1&domaine=${d.id}`}
-                className="transition-transform hover:-translate-y-px"
-              >
-                <Pastille domaine={d.nom} className="!py-1 !text-[13px]" />
-              </Link>
+      {peuples.length > 0 && (
+        <section>
+          <h2 className="text-sm text-encre-3">Par domaine</h2>
+          {/* Une liste de mots, pas une rangée d'étiquettes teintées : le nom
+              et son compte suffisent à hiérarchiser. */}
+          <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+            {peuples.map((d) => (
+              <li key={d.id}>
+                <Link
+                  href={`/formations?f=1&permanentes=1&domaine=${d.id}`}
+                  className="group inline-flex items-baseline gap-1.5 text-[15px] text-encre transition-colors hover:text-vif"
+                >
+                  {d.nom}
+                  <span className="donnee text-[13px] text-encre-4 transition-colors group-hover:text-vif">
+                    {d._count.formations}
+                  </span>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </section>
       )}
     </div>

@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Modal } from "@/components/ui/Modal";
+import { Dialogue } from "@/components/ui/Dialogue";
 import {
   enregistrerLiaison,
   lancerSynchronisation,
@@ -13,12 +13,12 @@ import { ETAT_VIDE, type EtatAction } from "@/app/admin/(dashboard)/sources/etat
 import type { ConfigBackendPublique, ResultatSync } from "@/lib/backend/types";
 
 const champ =
-  "mt-1.5 w-full rounded-lg border border-bordure bg-surface px-3 py-2 text-sm text-texte placeholder:text-texte-tenu transition-colors hover:border-bordure-forte";
-const libelle = "block text-xs font-medium tracking-wide text-texte-doux uppercase";
+  "mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]";
+const libelle = "block text-[13px] text-encre-3";
 const boutonPrincipal =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 bg-action text-action-texte hover:bg-action-survol";
+  "inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] bg-action px-4 py-2 text-sm font-medium text-action-texte transition-opacity hover:opacity-85 disabled:pointer-events-none disabled:opacity-40";
 const boutonSecondaire =
-  "rounded-md border border-bordure-forte px-4 py-2 text-sm font-medium hover:bg-surface-2 disabled:opacity-50";
+  "inline-flex items-center justify-center rounded-[var(--rayon)] bg-surface-creuse px-4 py-2 text-sm font-medium text-encre transition-colors hover:bg-trait disabled:opacity-40";
 
 function Message({ etat }: { etat: EtatAction }) {
   if (etat.statut === "vide") return null;
@@ -26,10 +26,10 @@ function Message({ etat }: { etat: EtatAction }) {
   return (
     <p
       role="status"
-      className={`rounded-md border px-4 py-2 text-sm ${
+      className={`rounded-[var(--rayon)] border px-4 py-2 text-sm ${
         erreur
-          ? "border-erreur/30 bg-erreur-fond text-erreur"
-          : "border-succes/30 bg-succes-fond text-succes"
+          ? "border-erreur/30 bg-erreur-doux text-erreur"
+          : "border-vif/25 bg-vif-doux text-vif"
       }`}
     >
       {etat.message}
@@ -113,10 +113,10 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-bordure bg-surface shadow-carte p-6">
+    <div className="flex flex-col gap-4 cadre p-6">
       <div>
         <h2 className="text-base font-semibold">Liaison avec le backend de veille</h2>
-        <p className="mt-1 text-sm text-texte-doux">
+        <p className="mt-1 text-sm text-encre-2">
           Rapatrie automatiquement les sessions collectées par le scraper. Les
           données saisies ou importées à la main ne sont jamais écrasées.
         </p>
@@ -154,7 +154,7 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
                 placeholder="http://localhost:8000"
                 className={champ}
               />
-              <p className="mt-1 text-xs text-texte-doux">
+              <p className="mt-1 text-xs text-encre-2">
                 Sans le suffixe /api : le site appelle /api/sante et
                 /api/sessions.
               </p>
@@ -174,7 +174,7 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
                 className={champ}
               />
               {config.tokenDefini && (
-                <label className="mt-2 flex items-center gap-2 text-xs text-texte-doux">
+                <label className="mt-2 flex items-center gap-2 text-xs text-encre-2">
                   <input type="checkbox" name="effacerToken" /> Effacer le jeton
                   enregistré
                 </label>
@@ -195,7 +195,7 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
               placeholder="../data/formations.db"
               className={champ}
             />
-            <p className="mt-1 text-xs text-texte-doux">
+            <p className="mt-1 text-xs text-encre-2">
               Relatif au dossier de lancement du site. Le fichier est ouvert en
               lecture seule : le scraper reste seul à écrire.
             </p>
@@ -276,7 +276,7 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
       <Message etat={etat} />
       {resultat && <ResumeSync resultat={resultat} />}
 
-      <div className="border-t border-bordure pt-4">
+      <div className="border-t border-trait pt-4">
         <button
           type="button"
           onClick={() => setPurgeOuverte(true)}
@@ -284,18 +284,22 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
         >
           Retirer les données issues du backend
         </button>
-        <p className="mt-1 text-xs text-texte-doux">
+        <p className="mt-1 text-xs text-encre-2">
           Ne touche pas aux données saisies ou importées à la main. La
           synchronisation suivante les reconstruit depuis le backend.
         </p>
       </div>
 
-      {purgeOuverte && (
-        <Modal onClose={() => setPurgeOuverte(false)} title="Retirer les données du backend">
+      <Dialogue
+          ouvert={purgeOuverte}
+          onFermer={() => setPurgeOuverte(false)}
+          titre="Retirer les données du backend ?"
+          description="Toutes les sessions synchronisées seront supprimées, ainsi que les formations, centres, domaines et organismes créés par la synchronisation et devenus vides. Les données manuelles restent en place."
+        >
           <h3 className="text-lg font-semibold text-erreur">
             Retirer les données du backend ?
           </h3>
-          <p className="mt-2 text-sm text-texte-doux dark:text-texte-tenu">
+          <p className="mt-2 text-sm text-encre-2 dark:text-encre-3">
             Toutes les sessions synchronisées seront supprimées, ainsi que les
             formations, centres, domaines et organismes créés par la
             synchronisation et devenus vides. Les données manuelles restent en
@@ -316,13 +320,12 @@ export function LiaisonBackend({ config }: { config: ConfigBackendPublique }) {
                 setPurgeOuverte(false);
                 executer("purge", () => purgerDonneesBackend());
               }}
-              className="rounded-md bg-erreur px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded-[var(--rayon)] bg-erreur px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               Retirer
             </button>
           </div>
-        </Modal>
-      )}
+        </Dialogue>
     </div>
   );
 }

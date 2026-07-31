@@ -1,14 +1,12 @@
 import Link from "next/link";
 
 /**
- * Pagination à fenêtre glissante. Le squelette affichait un lien par page :
- * lisible sur dix pages, illisible dès que le catalogue grossit. Ici on montre
- * toujours la première, la dernière, la page courante et ses voisines.
+ * Pagination à fenêtre glissante : la première page, la dernière, la courante
+ * et ses voisines. Le squelette affichait un lien par page, lisible sur dix,
+ * illisible dès que le catalogue grossit.
  */
 function fenetre(courante: number, total: number): (number | "…")[] {
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
 
   const pages = new Set<number>([1, total, courante]);
   if (courante > 1) pages.add(courante - 1);
@@ -17,7 +15,9 @@ function fenetre(courante: number, total: number): (number | "…")[] {
   if (courante <= 3) pages.add(2).add(3).add(4);
   if (courante >= total - 2) pages.add(total - 1).add(total - 2).add(total - 3);
 
-  const triees = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
+  const triees = [...pages]
+    .filter((p) => p >= 1 && p <= total)
+    .sort((a, b) => a - b);
 
   const avecTrous: (number | "…")[] = [];
   let precedente = 0;
@@ -40,21 +40,21 @@ export function Pagination({
 }) {
   if (totalPages <= 1) return null;
 
-  const commun =
-    "inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-sm chiffres transition-colors";
+  const base =
+    "donnee inline-flex h-8 min-w-8 items-center justify-center rounded-[3px] px-2 text-[13px] transition-colors";
 
   return (
     <nav
       aria-label="Pagination"
-      className="flex flex-wrap items-center justify-center gap-1.5"
+      className="flex flex-wrap items-center justify-center gap-1 pt-2"
     >
       {page > 1 && (
         <Link
           href={href(page - 1)}
           rel="prev"
-          className={`${commun} border border-bordure text-texte-doux hover:bg-surface-2 hover:text-texte`}
+          className={`${base} px-3 text-encre-3 hover:text-encre`}
         >
-          ← Précédent
+          Précédent
         </Link>
       )}
 
@@ -62,7 +62,7 @@ export function Pagination({
         p === "…" ? (
           <span
             key={`trou-${i}`}
-            className="px-1 text-sm text-texte-tenu"
+            className="px-1 text-encre-4"
             aria-hidden="true"
           >
             …
@@ -74,8 +74,8 @@ export function Pagination({
             aria-current={p === page ? "page" : undefined}
             className={
               p === page
-                ? `${commun} bg-action font-semibold text-action-texte`
-                : `${commun} border border-bordure text-texte-doux hover:bg-surface-2 hover:text-texte`
+                ? `${base} bg-action text-action-texte`
+                : `${base} text-encre-3 hover:bg-surface-creuse hover:text-encre`
             }
           >
             {p}
@@ -87,9 +87,9 @@ export function Pagination({
         <Link
           href={href(page + 1)}
           rel="next"
-          className={`${commun} border border-bordure text-texte-doux hover:bg-surface-2 hover:text-texte`}
+          className={`${base} px-3 text-encre-3 hover:text-encre`}
         >
-          Suivant →
+          Suivant
         </Link>
       )}
     </nav>

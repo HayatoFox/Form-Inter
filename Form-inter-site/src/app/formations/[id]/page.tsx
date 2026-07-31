@@ -2,33 +2,14 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import {
-  debutDuJour,
-  formatDateLong,
-  formatDuree,
-  formatPeriode,
-} from "@/lib/dates";
+import { debutDuJour, formatDateLong, formatDuree } from "@/lib/dates";
 import { BACKEND } from "@/lib/backend/types";
-import { Pastille } from "@/components/ui/Pastille";
-import { styleDomaine } from "@/lib/domaines";
-import { carte } from "@/lib/ui";
+import { Reglure } from "@/components/Reglure";
+import { FlecheSortante } from "@/components/Marques";
+import { TableauSessions } from "@/components/TableauSessions";
+import { cadre, lien } from "@/lib/ui";
 
 export const dynamic = "force-dynamic";
-
-const TENDUE = /derni|complet|limit|places? restante/i;
-
-type SessionAffichee = {
-  id: string;
-  dateDebut: Date | null;
-  dateFin: Date | null;
-  dureeJours: number | null;
-  tarif: string | null;
-  remarque: string | null;
-  placesInfo: string | null;
-  urlProgramme: string | null;
-  sourceUrl: string | null;
-  centre: { nom: string; ville: string } | null;
-};
 
 export async function generateMetadata({
   params,
@@ -43,73 +24,8 @@ export async function generateMetadata({
   if (!formation) return { title: "Formation introuvable" };
   return {
     title: formation.intitule,
-    description: `${formation.intitule} — ${formation.organisme.nom}. Dates, lieux et tarifs des sessions inter-entreprises.`,
+    description: `${formation.intitule}, chez ${formation.organisme.nom}. Dates, lieux et tarifs des sessions inter-entreprises.`,
   };
-}
-
-function LigneSession({
-  session,
-  passee = false,
-}: {
-  session: SessionAffichee;
-  passee?: boolean;
-}) {
-  return (
-    <li
-      className={`flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 text-sm transition-colors hover:bg-surface-2 ${
-        passee ? "text-texte-tenu" : ""
-      }`}
-    >
-      <span
-        className={`chiffres min-w-[14rem] ${passee ? "" : "font-medium text-texte"}`}
-      >
-        {formatPeriode(session)}
-      </span>
-      <span className={`flex-1 ${passee ? "" : "text-texte-doux"}`}>
-        {session.centre
-          ? `${session.centre.nom} — ${session.centre.ville}`
-          : "Lieu à confirmer"}
-      </span>
-      {session.dureeJours !== null && (
-        <span className="chiffres text-xs text-texte-tenu">
-          {session.dureeJours} j
-        </span>
-      )}
-      {session.tarif && (
-        <span
-          className={`chiffres text-xs ${passee ? "" : "font-medium text-texte"}`}
-        >
-          {session.tarif}
-        </span>
-      )}
-      {session.placesInfo && (
-        <span
-          className={`w-full text-xs sm:w-auto ${
-            !passee && TENDUE.test(session.placesInfo)
-              ? "font-medium text-accent"
-              : "text-texte-tenu"
-          }`}
-        >
-          {session.placesInfo}
-        </span>
-      )}
-      {session.remarque && (
-        <span className="w-full text-xs text-texte-tenu italic">
-          {session.remarque}
-        </span>
-      )}
-      {session.sourceUrl && (
-        <a
-          href={session.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-marque underline-offset-2 hover:underline"
-        >
-          Voir chez l&apos;organisme ↗
-        </a>
-      )}
-    </li>
-  );
 }
 
 export default async function FormationDetailPage({
@@ -154,65 +70,70 @@ export default async function FormationDetailPage({
     <div className="flex max-w-4xl flex-col gap-5">
       <Link
         href="/formations"
-        className="w-fit text-sm text-texte-doux underline-offset-2 transition-colors hover:text-texte hover:underline"
+        className="w-fit text-sm text-encre-3 transition-colors hover:text-encre"
       >
-        ← Retour aux formations
+        Retour au calendrier
       </Link>
 
-      <div
-        style={styleDomaine(domaine)}
-        className={`${carte} liseret-domaine p-6 pl-7`}
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl leading-tight font-semibold tracking-tight">
-            {formation.intitule}
-          </h1>
-          <Pastille domaine={domaine} className="mt-1" />
-        </div>
+      <div className={`${cadre} p-6`}>
+        <h1 className="signature text-[clamp(1.75rem,4vw,2.5rem)] leading-[1.1] text-encre">
+          {formation.intitule}
+        </h1>
 
-        <p className="mt-2 text-sm text-texte-doux">
+        <p className="mt-2.5 text-sm text-encre-2">
           Proposée par{" "}
           <Link
             href={`/organismes/${formation.organisme.id}`}
-            className="font-medium text-marque underline-offset-2 hover:underline"
+            className={lien}
           >
             {formation.organisme.nom}
           </Link>
+          {domaine && <span className="text-encre-3"> / {domaine}</span>}
           {formation.typeFormation && (
-            <span className="text-texte-tenu"> · {formation.typeFormation}</span>
+            <span className="text-encre-3"> / {formation.typeFormation}</span>
           )}
         </p>
 
+        {/* Le même repère que sur la carte, à l'échelle de la fiche. */}
+        <div className="mt-5">
+          <Reglure
+            sessions={formation.sessions}
+            hauteur={130}
+            libelles
+            tailleLibelle={22}
+          />
+        </div>
+
         {formation.description && (
-          <p className="mt-4 text-sm leading-relaxed whitespace-pre-line text-texte-doux">
+          <p className="mt-4 text-sm leading-relaxed whitespace-pre-line text-encre-2">
             {formation.description}
           </p>
         )}
 
         {/* Les repères qu'on cherche en premier sur une fiche : combien de
             temps, combien de dates, où, à quel prix. */}
-        <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-bordure pt-5 sm:grid-cols-4">
+        <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-trait pt-5 sm:grid-cols-4">
           {formation.dureeValeur !== null && (
             <div>
-              <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+              <dt className="text-[13px] text-encre-3">
                 Durée
               </dt>
-              <dd className="chiffres mt-1 text-sm font-medium">
+              <dd className="donnee mt-1 text-sm font-medium">
                 {formatDuree(formation.dureeValeur, formation.dureeUnite)}
               </dd>
             </div>
           )}
           <div>
-            <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+            <dt className="text-[13px] text-encre-3">
               Sessions à venir
             </dt>
-            <dd className="chiffres mt-1 text-sm font-medium">
+            <dd className="donnee mt-1 text-sm font-medium">
               {upcoming.length + permanentes.length}
             </dd>
           </div>
           {villes.length > 0 && (
             <div>
-              <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+              <dt className="text-[13px] text-encre-3">
                 Lieux
               </dt>
               <dd className="mt-1 text-sm font-medium">
@@ -222,10 +143,10 @@ export default async function FormationDetailPage({
           )}
           {derniereVue !== null && (
             <div>
-              <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+              <dt className="text-[13px] text-encre-3">
                 Relevé le
               </dt>
-              <dd className="chiffres mt-1 text-sm font-medium">
+              <dd className="donnee mt-1 text-sm font-medium">
                 {formatDateLong(new Date(derniereVue))}
               </dd>
             </div>
@@ -237,44 +158,36 @@ export default async function FormationDetailPage({
             href={formation.urlProgramme}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-block text-sm text-marque underline-offset-2 hover:underline"
+            className={`mt-4 inline-flex items-baseline gap-1.5 text-sm ${lien}`}
           >
-            Programme de la formation ↗
+            Programme de la formation
+            <FlecheSortante />
           </a>
         )}
       </div>
 
-      <section className={carte}>
-        <h2 className="border-b border-bordure px-4 py-3 text-sm font-semibold">
+      <section className={cadre}>
+        <h2 className="signature border-b border-trait px-4 py-3 text-[17px] text-encre">
           Sessions à venir
         </h2>
         {upcoming.length === 0 && permanentes.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-texte-tenu">
+          <p className="px-4 py-6 text-sm text-encre-3">
             Aucune session à venir n&apos;est planifiée pour cette formation.
           </p>
         ) : (
-          <ul className="divide-y divide-bordure">
-            {upcoming.map((s) => (
-              <LigneSession key={s.id} session={s} />
-            ))}
-            {permanentes.map((s) => (
-              <LigneSession key={s.id} session={s} />
-            ))}
-          </ul>
+          <TableauSessions sessions={[...upcoming, ...permanentes]} />
         )}
       </section>
 
       {past.length > 0 && (
-        <details className={`${carte} group`}>
-          <summary className="cursor-pointer px-4 py-3 text-sm text-texte-doux transition-colors hover:text-texte">
-            <span className="chiffres">{past.length}</span> session
+        <details className={`${cadre} group`}>
+          <summary className="cursor-pointer px-4 py-3 text-sm text-encre-2 transition-colors hover:text-encre">
+            <span className="donnee">{past.length}</span> session
             {past.length > 1 ? "s" : ""} passée{past.length > 1 ? "s" : ""}
           </summary>
-          <ul className="divide-y divide-bordure border-t border-bordure">
-            {past.map((s) => (
-              <LigneSession key={s.id} session={s} passee />
-            ))}
-          </ul>
+          <div className="border-t border-trait">
+            <TableauSessions sessions={past} passees />
+          </div>
         </details>
       )}
     </div>

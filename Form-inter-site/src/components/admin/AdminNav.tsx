@@ -31,10 +31,10 @@ export function AdminNav() {
             key={lien.href}
             href={lien.href}
             aria-current={actif ? "page" : undefined}
-            className={`rounded-lg px-3 py-1.5 font-medium transition-colors ${
+            className={`rounded-[var(--rayon)] px-3 py-1.5 font-medium transition-colors ${
               actif
-                ? "bg-surface-active text-marque"
-                : "text-texte-doux hover:bg-surface-2 hover:text-texte"
+                ? "bg-vif-doux text-vif"
+                : "text-encre-2 hover:bg-surface-creuse hover:text-encre"
             }`}
           >
             {lien.label}
