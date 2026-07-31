@@ -89,8 +89,14 @@ export function FormationCard({
           <Pastille domaine={domaine} className="mt-0.5 shrink-0" />
         </div>
 
-        <p className="-mt-1 text-sm text-texte-doux">
-          {formation.organisme.nom}
+        {/* Plusieurs organismes proposent le même intitulé — « AIPR Concepteur »
+            revient quatre fois d'affilée dans un tri alphabétique. L'organisme
+            est alors le seul discriminant : il est mis en avant plutôt que
+            traité comme une mention secondaire. */}
+        <p className="-mt-1 text-sm">
+          <span className="font-medium text-texte-doux">
+            {formation.organisme.nom}
+          </span>
           {formation.typeFormation && (
             <span className="text-texte-tenu"> · {formation.typeFormation}</span>
           )}

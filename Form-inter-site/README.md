@@ -24,6 +24,43 @@ npm run db:seed             # organismes de départ + compte admin
 npm run dev                 # http://localhost:3000
 ```
 
+## Tester en local, sans backend ni Docker
+
+`npm run db:demo` remplit la base avec un catalogue réaliste — organismes,
+domaines, villes et intitulés du métier — sans lancer le backend ni attendre
+une collecte de quinze minutes. C'est le chemin le plus court pour juger
+l'interface.
+
+```bash
+cd Form-inter-site
+npm install
+
+cat > .env <<'FIN'
+DATABASE_URL="file:./dev.db"
+SESSION_SECRET="remplacer-par-openssl-rand-hex-32"
+ADMIN_EMAIL="admin@local"
+ADMIN_PASSWORD_SEED="demo"
+FIN
+
+npx prisma migrate deploy
+npm run db:demo
+npm run dev          # http://localhost:3000 — back office : admin@local / demo
+```
+
+Le jeu couvre volontairement ce qui fait tomber une mise en page : intitulés
+très longs, sessions à entrée permanente sans dates, durées décimales
+(« 0,5 jour »), disponibilité tendue (l'orange d'accent), tarifs absents,
+sessions déjà passées. Il est **déterministe** : deux exécutions donnent le
+même catalogue, donc deux captures d'écran restent comparables.
+
+⚠ `db:demo` vide les données métier de la base visée. Il refuse de tourner avec
+`NODE_ENV=production`.
+
+Pour tester la chaîne complète avec le vrai backend, voir « Liaison avec le
+backend » plus bas : lancer le webapp Python à côté (`python3 -m webapp` avec
+`WEBAPP_API_TOKEN`), puis régler le mode `http` dans Admin › Sources de
+données. Ou tout lancer en conteneurs avec `./deploy.sh` à la racine du dépôt.
+
 ## Variables d'environnement
 
 | Variable | Rôle |
