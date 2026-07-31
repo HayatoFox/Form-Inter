@@ -109,6 +109,7 @@ export default async function FormationsPage({
     organismes,
     villesRaw,
     total,
+    totalCatalogue,
     totalSessions,
     formations,
   ] = await Promise.all([
@@ -120,6 +121,9 @@ export default async function FormationsPage({
       orderBy: { ville: "asc" },
     }),
     prisma.formation.count({ where }),
+    // Distingue « aucun résultat pour cette recherche » de « base encore
+    // vide » : les deux méritent des mots différents.
+    prisma.formation.count(),
     // Une formation regroupe toutes ses dates et tous ses lieux : le catalogue
     // compte donc bien moins de formations que de sessions. Afficher les deux
     // évite de croire à des données manquantes en comparant avec le site de
@@ -143,6 +147,7 @@ export default async function FormationsPage({
   ]);
 
   const villes = villesRaw.map((v) => v.ville);
+  const catalogueVide = totalCatalogue === 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   function pageHref(p: number) {
@@ -194,18 +199,39 @@ export default async function FormationsPage({
         }}
       />
 
+      {/* « Rien ne correspond » suppose une recherche. Sur un catalogue encore
+          vide, ce message envoie chercher un filtre qui n'existe pas : il faut
+          dire que la base est vide, et où on la remplit. */}
       {formations.length === 0 ? (
         <div className="cadre px-6 py-16 text-center">
-          <p className="signature text-[20px] text-encre">
-            Rien ne correspond à ces critères.
-          </p>
-          <p className="mx-auto mt-2 max-w-md text-sm text-encre-2">
-            Élargissez la période, retirez un filtre, ou{" "}
-            <Link href="/formations" className={lien}>
-              repartez du calendrier complet
-            </Link>
-            .
-          </p>
+          {catalogueVide ? (
+            <>
+              <p className="signature text-[20px] text-encre">
+                Le catalogue est vide.
+              </p>
+              <p className="mx-auto mt-2 max-w-md text-sm text-encre-2">
+                Aucune formation n&apos;a encore été relevée. Elles arrivent par
+                la{" "}
+                <Link href="/admin/sources" className={lien}>
+                  liaison avec le backend
+                </Link>{" "}
+                ou par un import de fichier.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="signature text-[20px] text-encre">
+                Rien ne correspond à ces critères.
+              </p>
+              <p className="mx-auto mt-2 max-w-md text-sm text-encre-2">
+                Élargissez la période, retirez un filtre, ou{" "}
+                <Link href="/formations" className={lien}>
+                  repartez du calendrier complet
+                </Link>
+                .
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-3">

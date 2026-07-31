@@ -40,6 +40,35 @@ export default async function Accueil() {
     .filter((d) => d._count.formations > 0)
     .sort((a, b) => b._count.formations - a._count.formations);
 
+  // Une installation neuve n'a rien à montrer, et ce n'est pas une erreur : le
+  // premier écran doit dire quoi faire, pas réciter des zéros. Une réglure
+  // plate, une recherche sur rien et « 0 sessions à venir chez 0 organismes »
+  // sont ce qu'on voit après un `npm install`.
+  if (sessions.length === 0 && nbFormations === 0) {
+    return (
+      <div className="max-w-2xl py-6">
+        <h1 className="signature text-[clamp(2.25rem,5.5vw,3.5rem)] leading-[1.02] text-encre">
+          Le catalogue est vide
+        </h1>
+        <p className="mt-4 text-[15px] leading-relaxed text-encre-2">
+          Aucune session n&apos;a encore été relevée. Deux chemins la
+          remplissent : la{" "}
+          <Link href="/admin/sources" className={lien}>
+            liaison avec le backend de veille
+          </Link>
+          , qui rapatrie ce que les scrapers collectent chaque nuit, et
+          l&apos;import d&apos;un fichier Excel ou CSV fourni par un organisme.
+        </p>
+        <p className="mt-3 text-[15px] leading-relaxed text-encre-3">
+          Pour juger l&apos;interface sans backend, <span className="donnee">
+            npm run db:demo
+          </span>{" "}
+          pose un catalogue de démonstration.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-14 py-6">
       {/* Le premier écran n'est pas un empilement titre / sous-titre / boutons.
