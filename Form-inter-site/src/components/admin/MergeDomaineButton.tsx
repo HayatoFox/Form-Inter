@@ -26,7 +26,7 @@ export function MergeDomaineButton({
         type="button"
         onClick={() => setOpen(true)}
         disabled={otherDomaines.length === 0}
-        className="text-xs text-zinc-500 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+        className="text-xs text-texte-doux hover:underline disabled:cursor-not-allowed disabled:opacity-40"
         title={
           otherDomaines.length === 0
             ? "Aucun autre domaine à fusionner"
@@ -46,7 +46,7 @@ export function MergeDomaineButton({
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Fermer"
-              className="shrink-0 rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
+              className="shrink-0 rounded-md p-1 text-texte-tenu hover:bg-surface-2 hover:text-texte"
             >
               ✕
             </button>
@@ -60,21 +60,21 @@ export function MergeDomaineButton({
             className="mt-4 flex flex-col gap-4"
           >
             <div>
-              <p className="text-xs font-medium text-zinc-500">
+              <p className="text-xs font-medium text-texte-doux">
                 Fusionner avec
               </p>
               <ul className="mt-2 flex max-h-64 flex-col gap-1 overflow-y-auto">
                 {otherDomaines.map((d) => (
                   <li key={d.id}>
-                    <label className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                    <label className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-2">
                       <input
                         type="checkbox"
                         name="mergeWith"
                         value={d.id}
-                        className="rounded border-zinc-300 dark:border-zinc-700"
+                        className="rounded border-bordure-forte"
                       />
                       {d.nom}
-                      <span className="text-zinc-500">
+                      <span className="text-texte-doux">
                         ({d.formationsCount} formation
                         {d.formationsCount > 1 ? "s" : ""})
                       </span>
@@ -85,16 +85,16 @@ export function MergeDomaineButton({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-500">
+              <label className="block text-xs font-medium tracking-wide text-texte-doux uppercase">
                 Nom final du domaine
               </label>
               <input
                 name="finalName"
                 required
                 defaultValue={domaine.nom}
-                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                className="mt-1.5 w-full rounded-lg border border-bordure bg-surface px-3 py-2 text-sm text-texte placeholder:text-texte-tenu transition-colors hover:border-bordure-forte"
               />
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-texte-doux">
                 Toutes les formations des domaines sélectionnés seront
                 rattachées à ce nom. Si ce nom correspond déjà à un domaine
                 existant, la fusion se fait dans ce domaine-là.
@@ -105,13 +105,13 @@ export function MergeDomaineButton({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 border border-bordure-forte bg-surface text-texte hover:bg-surface-2"
               >
                 Annuler
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 bg-action text-action-texte hover:bg-action-survol"
               >
                 Fusionner
               </button>

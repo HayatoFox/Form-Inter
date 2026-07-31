@@ -104,6 +104,35 @@ scrapé désignent la même entité.
   curl -H "Authorization: Bearer $CRON_SECRET" https://<site>/api/cron/sync
   ```
 
+## Direction artistique
+
+Ancrée sur l'identité PROINSEC — bleu `#0072b1`, orange `#ff6900`, encre
+`#1c2733`, les mêmes que le site de veille interne — mais traitée en produit :
+respiration, hiérarchie typographique, élévation basse. Les arbitrages penchent
+vers l'outil de travail : c'est l'équipe qui balaie le catalogue toute la
+journée.
+
+Trois règles tiennent l'ensemble :
+
+**Aucun composant n'écrit `dark:`.** Les jetons sémantiques (`surface`, `texte`,
+`bordure`, `marque`, `action`…) basculent dans `globals.css` et sont exposés en
+utilitaires Tailwind par `@theme inline`. Un seul endroit à relire pour vérifier
+le thème sombre, et aucune paire de classes à maintenir en double. Les recettes
+partagées (cartes, boutons, champs) vivent dans `src/lib/ui.ts`.
+
+**Le domaine est une teinte, pas une couleur.** `src/lib/domaines.ts` associe à
+chacun des quatorze domaines une teinte oklch ; `.pastille` fixe la clarté et le
+chroma. Toutes les pastilles ont donc le même poids visuel et le même contraste
+dans les deux thèmes — ce qu'une liste de codes hexadécimaux choisis un par un
+ne sait pas garantir. Un domaine inconnu reçoit une teinte dérivée de son nom,
+stable d'une page à l'autre. C'est la signature du site : la même pastille dans
+la carte, le filtre, la fiche et la modale, plus le liseré du même ton à gauche
+des cartes.
+
+**L'orange est rare et signifiant.** Il ne sort que lorsque la disponibilité se
+tend (« dernières places », « complet ») ; partout ailleurs le gris suffit. Un
+accent qui sert partout ne signale plus rien.
+
 ## Dates
 
 Toutes les dates du site sont des **dates calendaires** stockées à minuit UTC et

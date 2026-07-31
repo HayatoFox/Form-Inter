@@ -7,7 +7,7 @@ export default function AdminImportPage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Import Excel / CSV
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-texte-doux">
           Importez en masse des formations depuis un fichier fourni par un
           organisme partenaire.
         </p>

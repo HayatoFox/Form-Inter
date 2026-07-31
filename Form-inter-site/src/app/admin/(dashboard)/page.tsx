@@ -58,10 +58,10 @@ export default async function AdminDashboardPage() {
           <Link
             key={s.label}
             href={s.href}
-            className="rounded-lg border border-zinc-200 bg-white p-4 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
+            className="rounded-lg border border-bordure bg-surface p-4 hover:shadow-md"
           >
             <div className="text-2xl font-semibold">{s.value}</div>
-            <div className="text-sm text-zinc-500">{s.label}</div>
+            <div className="text-sm text-texte-doux">{s.label}</div>
           </Link>
         ))}
       </div>
@@ -70,12 +70,12 @@ export default async function AdminDashboardPage() {
         href="/admin/sources"
         className={`block rounded-lg border p-6 hover:shadow-md ${
           enRetard
-            ? "border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
-            : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+            ? "border-alerte/40 bg-alerte-fond"
+            : "border-bordure bg-surface"
         }`}
       >
         <h2 className="text-base font-semibold">Liaison backend</h2>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-texte-doux">
           {libelleMode(config.mode)}
           {liaisonActive && (
             <>
@@ -86,19 +86,19 @@ export default async function AdminDashboardPage() {
             </>
           )}
         </p>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-texte-doux">
           {sessionsBackend} session(s) du backend · {sessionsManuelles}{" "}
           session(s) manuelle(s)
         </p>
         {enRetard && (
-          <p className="mt-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+          <p className="mt-2 text-sm font-medium text-alerte">
             La dernière synchronisation réussie est ancienne — vérifiez la
             liaison.
           </p>
         )}
       </Link>
 
-      <div className="rounded-lg border border-dashed border-zinc-300 p-6 text-sm text-zinc-500 dark:border-zinc-700">
+      <div className="rounded-lg border border-dashed border-bordure-forte p-6 text-sm text-texte-doux">
         Le catalogue se remplit par deux chemins : la liaison avec le backend de
         veille et l&apos;import de fichiers Excel/CSV. Les sessions manuelles
         terminées sont supprimées à chaque visite de cette page ou de la

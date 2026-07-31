@@ -1,26 +1,281 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* =============================================================================
+   Système de design — Formations Inter (PROINSEC)
+   -----------------------------------------------------------------------------
+   Ancre de marque : le bleu PROINSEC #0072b1, l'orange #ff6900 en accent rare,
+   l'encre #1c2733 comme neutre le plus sombre — les mêmes que le site de veille
+   interne, pour que les deux outils se reconnaissent comme parents.
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+   Deux principes qui expliquent la forme du fichier :
+
+   1. Les composants n'écrivent jamais `dark:`. Les jetons sémantiques
+      (--surface, --texte, --bordure…) basculent ici, et `@theme inline` les
+      expose en utilitaires Tailwind. Un seul endroit à relire pour vérifier le
+      thème sombre, et aucune paire de classes à maintenir en double.
+
+   2. Les couleurs de domaine ne sont pas quatorze palettes écrites à la main
+      mais quatorze teintes en oklch. Clarté et chroma sont fixés, seule la
+      teinte change : les pastilles ont donc toutes le même poids visuel et le
+      même contraste, ce qu'on ne sait pas garantir avec des hex choisis un par
+      un.
+   ========================================================================== */
+
+:root {
+  /* --- Bleu PROINSEC (600 = la couleur de marque exacte) ------------------ */
+  --marque-50: #eff8fd;
+  --marque-100: #dceffa;
+  --marque-200: #b9dff4;
+  --marque-300: #82c7ea;
+  --marque-400: #44a9dc;
+  --marque-500: #1c8cc9;
+  --marque-600: #0072b1;
+  --marque-700: #045b8f;
+  --marque-800: #084d76;
+  --marque-900: #0d4163;
+  --marque-950: #082942;
+
+  /* --- Orange PROINSEC (500 = la couleur de marque exacte) ---------------- */
+  --accent-50: #fff5ed;
+  --accent-100: #ffe8d4;
+  --accent-200: #ffcda8;
+  --accent-300: #ffa970;
+  --accent-400: #ff7a36;
+  --accent-500: #ff6900;
+  --accent-600: #f04d00;
+  --accent-700: #c73802;
+
+  /* --- Neutres : une échelle légèrement bleutée, pas un gris pur ---------- */
+  --neutre-0: #ffffff;
+  --neutre-50: #f6f8fa;
+  --neutre-100: #eceff3;
+  --neutre-200: #d9dfe6;
+  --neutre-300: #b8c2ce;
+  --neutre-400: #8f9dae;
+  --neutre-500: #6d7d91;
+  --neutre-600: #566578;
+  --neutre-700: #465262;
+  --neutre-800: #3b4553;
+  --neutre-900: #1c2733;
+  --neutre-950: #121a23;
+
+  /* --- Jetons sémantiques (thème clair) ---------------------------------- */
+  --fond: var(--neutre-50);
+  --surface: var(--neutre-0);
+  --surface-2: var(--neutre-50);
+  --surface-active: var(--marque-50);
+
+  --bordure: var(--neutre-200);
+  --bordure-forte: var(--neutre-300);
+
+  --texte: var(--neutre-900);
+  --texte-doux: var(--neutre-600);
+  --texte-tenu: var(--neutre-400);
+  --texte-inverse: var(--neutre-0);
+
+  --marque: var(--marque-600);
+  --marque-survol: var(--marque-700);
+  --marque-douce: var(--marque-50);
+  --accent: var(--accent-600);
+  --accent-douce: var(--accent-50);
+
+  /* Le bouton porte son propre fond : il garde le bleu de marque plein dans
+     les deux thèmes, là où --marque s'éclaircit en sombre pour rester lisible
+     en texte. Blanc sur #0072b1 = 5,3:1, confortable partout. */
+  --action: var(--marque-600);
+  --action-survol: var(--marque-700);
+  --action-texte: #ffffff;
+
+  --succes: #1d7a3e;
+  --succes-fond: #e6f4ea;
+  --alerte: #b96a00;
+  --alerte-fond: #fdf3e2;
+  --erreur: #c22e2e;
+  --erreur-fond: #fceceb;
+
+  --anneau: var(--marque-500);
+
+  /* Ombres basses : l'élévation hiérarchise, elle ne décore pas. */
+  --ombre-1: 0 1px 2px 0 rgb(28 39 51 / 0.05);
+  --ombre-2: 0 2px 4px -1px rgb(28 39 51 / 0.07), 0 1px 2px -1px rgb(28 39 51 / 0.04);
+  --ombre-3: 0 8px 20px -6px rgb(28 39 51 / 0.14), 0 2px 6px -2px rgb(28 39 51 / 0.06);
+
+  /* Clarté et chroma des pastilles de domaine, thème clair. */
+  --pastille-l-fond: 0.955;
+  --pastille-c-fond: 0.035;
+  --pastille-l-bord: 0.885;
+  --pastille-c-bord: 0.055;
+  --pastille-l-texte: 0.44;
+  --pastille-c-texte: 0.115;
+  --pastille-l-point: 0.62;
+  --pastille-c-point: 0.16;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --fond: #0d141c;
+    --surface: #161f29;
+    --surface-2: #1b2632;
+    --surface-active: #10293a;
+
+    --bordure: #2a3644;
+    --bordure-forte: #3b4b5c;
+
+    --texte: #e7edf3;
+    --texte-doux: #a3b2c2;
+    --texte-tenu: #71839a;
+    --texte-inverse: var(--neutre-900);
+
+    /* Le bleu de marque devient illisible sur fond sombre : on remonte de deux
+       crans dans la même échelle — l'identité tient, le contraste revient. */
+    --marque: var(--marque-400);
+    --marque-survol: var(--marque-300);
+    --marque-douce: #10293a;
+    --accent: var(--accent-400);
+    --accent-douce: #2e1a0c;
+
+    /* Le fond du bouton ne bouge pas : c'est en s'éclaircissant au survol,
+       et non en s'assombrissant, qu'il répond juste sur fond sombre. */
+    --action: var(--marque-600);
+    --action-survol: var(--marque-500);
+
+    --succes: #57c785;
+    --succes-fond: #10291b;
+    --alerte: #e0a44a;
+    --alerte-fond: #2e2110;
+    --erreur: #f08a86;
+    --erreur-fond: #2e1616;
+
+    --anneau: var(--marque-400);
+
+    --ombre-1: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --ombre-2: 0 2px 4px -1px rgb(0 0 0 / 0.45), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --ombre-3: 0 8px 20px -6px rgb(0 0 0 / 0.6), 0 2px 6px -2px rgb(0 0 0 / 0.4);
+
+    --pastille-l-fond: 0.255;
+    --pastille-c-fond: 0.045;
+    --pastille-l-bord: 0.34;
+    --pastille-c-bord: 0.06;
+    --pastille-l-texte: 0.83;
+    --pastille-c-texte: 0.09;
+    --pastille-l-point: 0.72;
+    --pastille-c-point: 0.14;
   }
 }
 
+@theme inline {
+  --color-fond: var(--fond);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-active: var(--surface-active);
+
+  --color-bordure: var(--bordure);
+  --color-bordure-forte: var(--bordure-forte);
+
+  --color-texte: var(--texte);
+  --color-texte-doux: var(--texte-doux);
+  --color-texte-tenu: var(--texte-tenu);
+  --color-texte-inverse: var(--texte-inverse);
+
+  --color-marque: var(--marque);
+  --color-marque-survol: var(--marque-survol);
+  --color-marque-douce: var(--marque-douce);
+  --color-accent: var(--accent);
+  --color-accent-douce: var(--accent-douce);
+
+  --color-action: var(--action);
+  --color-action-survol: var(--action-survol);
+  --color-action-texte: var(--action-texte);
+
+  --color-succes: var(--succes);
+  --color-succes-fond: var(--succes-fond);
+  --color-alerte: var(--alerte);
+  --color-alerte-fond: var(--alerte-fond);
+  --color-erreur: var(--erreur);
+  --color-erreur-fond: var(--erreur-fond);
+
+  --shadow-carte: var(--ombre-1);
+  --shadow-eleve: var(--ombre-2);
+  --shadow-flottant: var(--ombre-3);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* --- Base ----------------------------------------------------------------- */
+
+html {
+  color-scheme: light dark;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--fond);
+  color: var(--texte);
+  /* Le squelette forçait Arial ici, ce qui annulait la police chargée par le
+     layout : la variable Geist reprend la main, avec un repli système. */
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Un anneau de focus unique, visible sur toutes les surfaces, jamais retiré :
+   le back office se remplit beaucoup au clavier. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--anneau);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Dates, durées, tarifs, compteurs : la chasse fixe les empêche de trembler
+   d'une ligne à l'autre dans des listes de plusieurs milliers d'entrées. */
+.chiffres {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Pastille de domaine -------------------------------------------------- */
+
+/* Signature visuelle du site : la même pastille dans la carte, le filtre, la
+   fiche et la modale. Une seule variable (--h, la teinte) pilote ses quatre
+   couleurs. */
+.pastille {
+  --h: 245;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid oklch(var(--pastille-l-bord) var(--pastille-c-bord) var(--h));
+  background: oklch(var(--pastille-l-fond) var(--pastille-c-fond) var(--h));
+  color: oklch(var(--pastille-l-texte) var(--pastille-c-texte) var(--h));
+  padding: 0.125rem 0.5rem 0.125rem 0.4375rem;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pastille::before {
+  content: "";
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: oklch(var(--pastille-l-point) var(--pastille-c-point) var(--h));
+  flex: none;
+}
+
+/* Le même repère, réduit à un filet : liseré gauche des cartes et des lignes. */
+.liseret-domaine {
+  --h: 245;
+  box-shadow: inset 3px 0 0 0 oklch(var(--pastille-l-point) var(--pastille-c-point) var(--h));
+}
+
+/* --- Confort -------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

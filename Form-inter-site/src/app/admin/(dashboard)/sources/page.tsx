@@ -11,10 +11,10 @@ const horodatage = new Intl.DateTimeFormat("fr-FR", {
 });
 
 const STATUTS: Record<string, { libelle: string; classe: string }> = {
-  ok: { libelle: "OK", classe: "text-emerald-600" },
-  erreur: { libelle: "Erreur", classe: "text-red-600" },
-  en_cours: { libelle: "En cours", classe: "text-amber-600" },
-  ignore: { libelle: "Reporté", classe: "text-zinc-500" },
+  ok: { libelle: "OK", classe: "text-succes" },
+  erreur: { libelle: "Erreur", classe: "text-erreur" },
+  en_cours: { libelle: "En cours", classe: "text-alerte" },
+  ignore: { libelle: "Reporté", classe: "text-texte-doux" },
 };
 
 export default async function AdminSourcesPage() {
@@ -31,7 +31,7 @@ export default async function AdminSourcesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Sources de données
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-texte-doux">
           Le catalogue du site se remplit de deux façons, qui cohabitent :
           l&apos;import d&apos;un fichier fourni par un organisme, et la liaison
           avec le backend de veille qui scrape les sites des organismes.
@@ -39,15 +39,15 @@ export default async function AdminSourcesPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="rounded-xl border border-bordure bg-surface shadow-carte p-4">
           <div className="text-2xl font-semibold">{backendCounts}</div>
-          <div className="text-sm text-zinc-500">
+          <div className="text-sm text-texte-doux">
             session(s) synchronisées depuis le backend
           </div>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="rounded-xl border border-bordure bg-surface shadow-carte p-4">
           <div className="text-2xl font-semibold">{manuelCounts}</div>
-          <div className="text-sm text-zinc-500">
+          <div className="text-sm text-texte-doux">
             session(s) saisies ou importées à la main
           </div>
         </div>
@@ -55,34 +55,34 @@ export default async function AdminSourcesPage() {
 
       <LiaisonBackend config={config} />
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="rounded-xl border border-bordure bg-surface shadow-carte p-6">
         <h2 className="text-base font-semibold">Import Excel / CSV</h2>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-texte-doux">
           Pour les organismes qui transmettent un fichier plutôt qu&apos;un
           planning en ligne. Les lignes importées portent la source
           « manuelle » et survivent aux synchronisations.
         </p>
         <Link
           href="/admin/import"
-          className="mt-3 inline-block rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          className="mt-3 inline-block inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 border border-bordure-forte bg-surface text-texte hover:bg-surface-2"
         >
           Ouvrir l&apos;assistant d&apos;import
         </Link>
       </div>
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="rounded-xl border border-bordure bg-surface shadow-carte p-6">
         <h2 className="text-base font-semibold">
           Derniers passages de synchronisation
         </h2>
         {passages.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">
+          <p className="mt-2 text-sm text-texte-doux">
             Aucune synchronisation n&apos;a encore été lancée.
           </p>
         ) : (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-200 text-left dark:border-zinc-800">
+                <tr className="border-b border-bordure text-left">
                   <th className="py-2 pr-4">Date</th>
                   <th className="py-2 pr-4">Déclencheur</th>
                   <th className="py-2 pr-4">Mode</th>
@@ -96,12 +96,12 @@ export default async function AdminSourcesPage() {
                 {passages.map((p) => {
                   const statut = STATUTS[p.statut] ?? {
                     libelle: p.statut,
-                    classe: "text-zinc-500",
+                    classe: "text-texte-doux",
                   };
                   return (
                     <tr
                       key={p.id}
-                      className="border-b border-zinc-100 align-top dark:border-zinc-800"
+                      className="border-b border-bordure align-top"
                     >
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {horodatage.format(p.demarreLe)}
@@ -111,7 +111,7 @@ export default async function AdminSourcesPage() {
                       <td className={`py-2 pr-4 ${statut.classe}`}>
                         {statut.libelle}
                         {p.message && (
-                          <div className="max-w-md text-xs text-zinc-500">
+                          <div className="max-w-md text-xs text-texte-doux">
                             {p.message}
                           </div>
                         )}

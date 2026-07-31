@@ -125,14 +125,14 @@ export function ImportWizard() {
           <div
             key={s}
             className={`flex items-center gap-2 ${
-              step === s ? "font-semibold" : "text-zinc-400"
+              step === s ? "font-semibold" : "text-texte-tenu"
             }`}
           >
             <span
               className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
                 step === s
-                  ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
-                  : "border border-zinc-300 dark:border-zinc-700"
+                  ? "bg-action text-action-texte"
+                  : "border border-bordure-forte"
               }`}
             >
               {i + 1}
@@ -146,7 +146,7 @@ export function ImportWizard() {
       </div>
 
       {error && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
+        <p className="rounded-md border border-erreur/30 bg-erreur-fond px-4 py-2 text-sm text-erreur">
           {error}
         </p>
       )}
@@ -154,9 +154,9 @@ export function ImportWizard() {
       {step === "upload" && (
         <form
           onSubmit={handleUpload}
-          className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+          className="flex flex-col gap-4 rounded-xl border border-bordure bg-surface shadow-carte p-6"
         >
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-texte-doux">
             Sélectionnez un fichier Excel (.xlsx) ou CSV contenant les
             formations à importer. La première ligne doit contenir les
             en-têtes de colonnes.
@@ -171,7 +171,7 @@ export function ImportWizard() {
           <button
             type="submit"
             disabled={loading}
-            className="w-fit rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="w-fit inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 bg-action text-action-texte hover:bg-action-survol"
           >
             {loading ? "Analyse…" : "Analyser le fichier"}
           </button>
@@ -179,14 +179,14 @@ export function ImportWizard() {
       )}
 
       {step === "map" && (
-        <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500">
+        <div className="flex flex-col gap-4 rounded-xl border border-bordure bg-surface shadow-carte p-6">
+          <p className="text-sm text-texte-doux">
             Associez chaque colonne détectée à un champ. Organisme et Intitulé
             sont requis.
           </p>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 text-left dark:border-zinc-800">
+              <tr className="border-b border-bordure text-left">
                 <th className="py-2 pr-4">Colonne du fichier</th>
                 <th className="py-2 pr-4">Exemple</th>
                 <th className="py-2">Champ cible</th>
@@ -194,9 +194,9 @@ export function ImportWizard() {
             </thead>
             <tbody>
               {headers.map((header) => (
-                <tr key={header} className="border-b border-zinc-100 dark:border-zinc-800">
+                <tr key={header} className="border-b border-bordure">
                   <td className="py-2 pr-4 font-medium">{header}</td>
-                  <td className="py-2 pr-4 text-zinc-500">
+                  <td className="py-2 pr-4 text-texte-doux">
                     {String(rawRows[0]?.[header] ?? "")}
                   </td>
                   <td className="py-2">
@@ -208,7 +208,7 @@ export function ImportWizard() {
                           [header]: e.target.value as ImportTargetField | "",
                         }))
                       }
-                      className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                      className="rounded-lg border border-bordure bg-surface px-2.5 py-1.5 text-sm text-texte transition-colors hover:border-bordure-forte"
                     >
                       <option value="">Ignorer</option>
                       {IMPORT_TARGET_FIELDS.map((f) => (
@@ -224,7 +224,7 @@ export function ImportWizard() {
           </table>
 
           {(!hasOrganisme || !hasIntitule) && (
-            <p className="text-sm text-amber-600">
+            <p className="text-sm text-alerte">
               Il faut associer au moins une colonne à &quot;Organisme&quot; et
               une colonne à &quot;Intitulé de la formation&quot;.
             </p>
@@ -234,13 +234,13 @@ export function ImportWizard() {
             <button
               onClick={() => setStep("preview")}
               disabled={!hasOrganisme || !hasIntitule}
-              className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 bg-action text-action-texte hover:bg-action-survol"
             >
               Continuer
             </button>
             <button
               onClick={reset}
-              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 border border-bordure-forte bg-surface text-texte hover:bg-surface-2"
             >
               Recommencer
             </button>
@@ -249,8 +249,8 @@ export function ImportWizard() {
       )}
 
       {step === "preview" && (
-        <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-500">
+        <div className="flex flex-col gap-4 rounded-xl border border-bordure bg-surface shadow-carte p-6">
+          <p className="text-sm text-texte-doux">
             {validCount} ligne{validCount > 1 ? "s" : ""} valide
             {validCount > 1 ? "s" : ""} sur {previewResults.length}.
           </p>
@@ -258,7 +258,7 @@ export function ImportWizard() {
           <div className="max-h-96 overflow-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-200 text-left dark:border-zinc-800">
+                <tr className="border-b border-bordure text-left">
                   <th className="py-2 pr-4">#</th>
                   <th className="py-2 pr-4">Statut</th>
                   <th className="py-2 pr-4">Organisme</th>
@@ -268,18 +268,18 @@ export function ImportWizard() {
               </thead>
               <tbody>
                 {previewResults.slice(0, 200).map((r, i) => (
-                  <tr key={i} className="border-b border-zinc-100 dark:border-zinc-800">
-                    <td className="py-2 pr-4 text-zinc-500">{i + 1}</td>
+                  <tr key={i} className="border-b border-bordure">
+                    <td className="py-2 pr-4 text-texte-doux">{i + 1}</td>
                     <td className="py-2 pr-4">
                       {r.ok ? (
-                        <span className="text-emerald-600">OK</span>
+                        <span className="text-succes">OK</span>
                       ) : (
-                        <span className="text-red-600">Erreur</span>
+                        <span className="text-erreur">Erreur</span>
                       )}
                     </td>
                     <td className="py-2 pr-4">{String(r.row.organisme ?? "")}</td>
                     <td className="py-2 pr-4">{String(r.row.intitule ?? "")}</td>
-                    <td className="py-2 text-zinc-500">
+                    <td className="py-2 text-texte-doux">
                       {!r.ok && r.message}
                     </td>
                   </tr>
@@ -287,7 +287,7 @@ export function ImportWizard() {
               </tbody>
             </table>
             {previewResults.length > 200 && (
-              <p className="mt-2 text-xs text-zinc-500">
+              <p className="mt-2 text-xs text-texte-doux">
                 Aperçu limité aux 200 premières lignes ({previewResults.length}{" "}
                 au total seront importées).
               </p>
@@ -298,13 +298,13 @@ export function ImportWizard() {
             <button
               onClick={handleCommit}
               disabled={loading || validCount === 0}
-              className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 bg-action text-action-texte hover:bg-action-survol"
             >
               {loading ? "Import en cours…" : `Importer ${validCount} ligne(s)`}
             </button>
             <button
               onClick={() => setStep("map")}
-              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 border border-bordure-forte bg-surface text-texte hover:bg-surface-2"
             >
               Retour au mapping
             </button>
@@ -313,9 +313,9 @@ export function ImportWizard() {
       )}
 
       {step === "result" && commitResult && (
-        <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex flex-col gap-4 rounded-xl border border-bordure bg-surface shadow-carte p-6">
           <p className="text-sm">
-            <span className="font-semibold text-emerald-600">
+            <span className="font-semibold text-succes">
               {commitResult.processed}
             </span>{" "}
             ligne{commitResult.processed > 1 ? "s" : ""} traitée
@@ -327,11 +327,11 @@ export function ImportWizard() {
 
           {commitResult.errors.length > 0 && (
             <div>
-              <p className="text-sm font-medium text-red-600">
+              <p className="text-sm font-medium text-erreur">
                 {commitResult.errors.length} erreur
                 {commitResult.errors.length > 1 ? "s" : ""}
               </p>
-              <ul className="mt-2 flex flex-col gap-1 text-sm text-zinc-500">
+              <ul className="mt-2 flex flex-col gap-1 text-sm text-texte-doux">
                 {commitResult.errors.slice(0, 50).map((e, i) => (
                   <li key={i}>
                     Ligne {e.row} : {e.message}
@@ -343,7 +343,7 @@ export function ImportWizard() {
 
           <button
             onClick={reset}
-            className="w-fit rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            className="w-fit inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 border border-bordure-forte bg-surface text-texte hover:bg-surface-2"
           >
             Nouvel import
           </button>

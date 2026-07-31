@@ -1,10 +1,21 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { debutDuJour, formatDateLong, formatPeriode } from "@/lib/dates";
+import {
+  debutDuJour,
+  formatDateLong,
+  formatDuree,
+  formatPeriode,
+} from "@/lib/dates";
 import { BACKEND } from "@/lib/backend/types";
+import { Pastille } from "@/components/ui/Pastille";
+import { styleDomaine } from "@/lib/domaines";
+import { carte } from "@/lib/ui";
 
 export const dynamic = "force-dynamic";
+
+const TENDUE = /derni|complet|limit|places? restante/i;
 
 type SessionAffichee = {
   id: string;
@@ -19,6 +30,23 @@ type SessionAffichee = {
   centre: { nom: string; ville: string } | null;
 };
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const formation = await prisma.formation.findUnique({
+    where: { id },
+    select: { intitule: true, organisme: { select: { nom: true } } },
+  });
+  if (!formation) return { title: "Formation introuvable" };
+  return {
+    title: formation.intitule,
+    description: `${formation.intitule} — ${formation.organisme.nom}. Dates, lieux et tarifs des sessions inter-entreprises.`,
+  };
+}
+
 function LigneSession({
   session,
   passee = false,
@@ -28,40 +56,58 @@ function LigneSession({
 }) {
   return (
     <li
-      className={`rounded-md border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-800 ${
-        passee ? "text-zinc-500" : ""
+      className={`flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 text-sm transition-colors hover:bg-surface-2 ${
+        passee ? "text-texte-tenu" : ""
       }`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={passee ? "" : "font-medium"}>
-          {formatPeriode(session)}
+      <span
+        className={`chiffres min-w-[14rem] ${passee ? "" : "font-medium text-texte"}`}
+      >
+        {formatPeriode(session)}
+      </span>
+      <span className={`flex-1 ${passee ? "" : "text-texte-doux"}`}>
+        {session.centre
+          ? `${session.centre.nom} — ${session.centre.ville}`
+          : "Lieu à confirmer"}
+      </span>
+      {session.dureeJours !== null && (
+        <span className="chiffres text-xs text-texte-tenu">
+          {session.dureeJours} j
         </span>
-        <span className="text-zinc-500">
-          {session.centre
-            ? `${session.centre.nom} — ${session.centre.ville}`
-            : "Lieu à confirmer"}
+      )}
+      {session.tarif && (
+        <span
+          className={`chiffres text-xs ${passee ? "" : "font-medium text-texte"}`}
+        >
+          {session.tarif}
         </span>
-      </div>
-      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
-        {session.dureeJours !== null && (
-          <span>
-            {session.dureeJours} jour{session.dureeJours > 1 ? "s" : ""}
-          </span>
-        )}
-        {session.tarif && <span>{session.tarif}</span>}
-        {session.placesInfo && <span>{session.placesInfo}</span>}
-        {session.remarque && <span>{session.remarque}</span>}
-        {session.sourceUrl && (
-          <a
-            href={session.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline"
-          >
-            Voir sur le site de l&apos;organisme ↗
-          </a>
-        )}
-      </div>
+      )}
+      {session.placesInfo && (
+        <span
+          className={`w-full text-xs sm:w-auto ${
+            !passee && TENDUE.test(session.placesInfo)
+              ? "font-medium text-accent"
+              : "text-texte-tenu"
+          }`}
+        >
+          {session.placesInfo}
+        </span>
+      )}
+      {session.remarque && (
+        <span className="w-full text-xs text-texte-tenu italic">
+          {session.remarque}
+        </span>
+      )}
+      {session.sourceUrl && (
+        <a
+          href={session.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-marque underline-offset-2 hover:underline"
+        >
+          Voir chez l&apos;organisme ↗
+        </a>
+      )}
     </li>
   );
 }
@@ -87,6 +133,7 @@ export default async function FormationDetailPage({
 
   if (!formation) notFound();
 
+  const domaine = formation.domaine?.nom ?? null;
   const aujourdhui = debutDuJour();
   const permanentes = formation.sessions.filter((s) => !s.dateDebut);
   const datees = formation.sessions.filter((s) => s.dateDebut !== null);
@@ -99,76 +146,114 @@ export default async function FormationDetailPage({
     .map((s) => s.lastSeen!.getTime())
     .reduce<number | null>((max, t) => (max === null || t > max ? t : max), null);
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Link href="/formations" className="text-sm text-zinc-500 hover:underline">
-          ← Retour aux formations
-        </Link>
-      </div>
+  const villes = [
+    ...new Set(formation.sessions.map((s) => s.centre?.ville).filter(Boolean)),
+  ] as string[];
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+  return (
+    <div className="flex max-w-4xl flex-col gap-5">
+      <Link
+        href="/formations"
+        className="w-fit text-sm text-texte-doux underline-offset-2 transition-colors hover:text-texte hover:underline"
+      >
+        ← Retour aux formations
+      </Link>
+
+      <div
+        style={styleDomaine(domaine)}
+        className={`${carte} liseret-domaine p-6 pl-7`}
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl leading-tight font-semibold tracking-tight">
             {formation.intitule}
           </h1>
-          {formation.domaine && (
-            <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-              {formation.domaine.nom}
-            </span>
-          )}
+          <Pastille domaine={domaine} className="mt-1" />
         </div>
 
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-texte-doux">
           Proposée par{" "}
           <Link
             href={`/organismes/${formation.organisme.id}`}
-            className="font-medium underline"
+            className="font-medium text-marque underline-offset-2 hover:underline"
           >
             {formation.organisme.nom}
           </Link>
-          {formation.typeFormation && ` · ${formation.typeFormation}`}
+          {formation.typeFormation && (
+            <span className="text-texte-tenu"> · {formation.typeFormation}</span>
+          )}
         </p>
 
-        {formation.dureeValeur && (
-          <p className="mt-1 text-sm text-zinc-500">
-            Durée : {formation.dureeValeur} {formation.dureeUnite ?? ""}
-          </p>
-        )}
-
         {formation.description && (
-          <p className="mt-4 whitespace-pre-line text-zinc-700 dark:text-zinc-300">
+          <p className="mt-4 text-sm leading-relaxed whitespace-pre-line text-texte-doux">
             {formation.description}
           </p>
         )}
 
-        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
-          {formation.urlProgramme && (
-            <a
-              href={formation.urlProgramme}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-            >
-              Programme de la formation ↗
-            </a>
+        {/* Les repères qu'on cherche en premier sur une fiche : combien de
+            temps, combien de dates, où, à quel prix. */}
+        <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-bordure pt-5 sm:grid-cols-4">
+          {formation.dureeValeur !== null && (
+            <div>
+              <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+                Durée
+              </dt>
+              <dd className="chiffres mt-1 text-sm font-medium">
+                {formatDuree(formation.dureeValeur, formation.dureeUnite)}
+              </dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+              Sessions à venir
+            </dt>
+            <dd className="chiffres mt-1 text-sm font-medium">
+              {upcoming.length + permanentes.length}
+            </dd>
+          </div>
+          {villes.length > 0 && (
+            <div>
+              <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+                Lieux
+              </dt>
+              <dd className="mt-1 text-sm font-medium">
+                {villes.length <= 2 ? villes.join(", ") : `${villes.length} villes`}
+              </dd>
+            </div>
           )}
           {derniereVue !== null && (
-            <span className="text-xs text-zinc-500">
-              Relevé chez l&apos;organisme le {formatDateLong(new Date(derniereVue))}
-            </span>
+            <div>
+              <dt className="text-xs tracking-wide text-texte-tenu uppercase">
+                Relevé le
+              </dt>
+              <dd className="chiffres mt-1 text-sm font-medium">
+                {formatDateLong(new Date(derniereVue))}
+              </dd>
+            </div>
           )}
-        </div>
+        </dl>
+
+        {formation.urlProgramme && (
+          <a
+            href={formation.urlProgramme}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-block text-sm text-marque underline-offset-2 hover:underline"
+          >
+            Programme de la formation ↗
+          </a>
+        )}
       </div>
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-lg font-semibold">Sessions à venir</h2>
+      <section className={carte}>
+        <h2 className="border-b border-bordure px-4 py-3 text-sm font-semibold">
+          Sessions à venir
+        </h2>
         {upcoming.length === 0 && permanentes.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500">
+          <p className="px-4 py-6 text-sm text-texte-tenu">
             Aucune session à venir n&apos;est planifiée pour cette formation.
           </p>
         ) : (
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="divide-y divide-bordure">
             {upcoming.map((s) => (
               <LigneSession key={s.id} session={s} />
             ))}
@@ -177,20 +262,21 @@ export default async function FormationDetailPage({
             ))}
           </ul>
         )}
+      </section>
 
-        {past.length > 0 && (
-          <details className="mt-4">
-            <summary className="cursor-pointer text-sm text-zinc-500">
-              Sessions passées ({past.length})
-            </summary>
-            <ul className="mt-3 flex flex-col gap-2">
-              {past.map((s) => (
-                <LigneSession key={s.id} session={s} passee />
-              ))}
-            </ul>
-          </details>
-        )}
-      </div>
+      {past.length > 0 && (
+        <details className={`${carte} group`}>
+          <summary className="cursor-pointer px-4 py-3 text-sm text-texte-doux transition-colors hover:text-texte">
+            <span className="chiffres">{past.length}</span> session
+            {past.length > 1 ? "s" : ""} passée{past.length > 1 ? "s" : ""}
+          </summary>
+          <ul className="divide-y divide-bordure border-t border-bordure">
+            {past.map((s) => (
+              <LigneSession key={s.id} session={s} passee />
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }

@@ -14,9 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Formations Inter",
+  title: {
+    default: "Formations Inter",
+    template: "%s · Formations Inter",
+  },
   description:
-    "Recensement des formations inter-entreprises des organismes partenaires",
+    "Catalogue des sessions de formation inter-entreprises des organismes partenaires : domaine, ville, dates, tarifs.",
 };
 
 export default function RootLayout({
@@ -29,11 +32,16 @@ export default function RootLayout({
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
+      <body className="flex min-h-full flex-col">
         <NavBar />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+        {/* Large : l'écran de recherche est balayé toute la journée, chaque
+            colonne gagnée est une session de plus visible sans défiler. */}
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-7 sm:px-6">
           {children}
         </main>
+        <footer className="mx-auto w-full max-w-7xl px-4 py-8 text-xs text-texte-tenu sm:px-6">
+          Formations Inter — veille des sessions inter-entreprises, PROINSEC.
+        </footer>
       </body>
     </html>
   );

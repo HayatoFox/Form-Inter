@@ -33,52 +33,52 @@ export function DangerZone({
   }
 
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-900 dark:bg-red-950/40">
-      <h2 className="text-sm font-semibold text-red-700 dark:text-red-400">
+    <div className="rounded-lg border border-erreur/30 bg-erreur-fond p-6">
+      <h2 className="text-sm font-semibold text-erreur">
         Zone dangereuse
       </h2>
-      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+      <p className="mt-1 text-sm text-erreur">
         Supprime définitivement tous les organismes, centres, domaines,
         formations et sessions. Cette action est irréversible.
       </p>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+        className="mt-3 rounded-md bg-erreur px-4 py-2 text-sm font-medium text-white hover:opacity-90"
       >
         Supprimer toutes les données
       </button>
 
       {open && (
         <Modal onClose={close} title="Confirmer la suppression">
-          <h3 className="text-lg font-semibold text-red-700 dark:text-red-400">
+          <h3 className="text-lg font-semibold text-erreur">
             Supprimer toutes les données ?
           </h3>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-sm text-texte-doux dark:text-texte-tenu">
             Vous êtes sur le point de supprimer définitivement :
           </p>
-          <ul className="mt-2 list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+          <ul className="mt-2 list-disc pl-5 text-sm text-texte-doux dark:text-texte-tenu">
             <li>{counts.organismes} organisme(s) et leurs centres</li>
             <li>{counts.formations} formation(s)</li>
             <li>{counts.sessions} session(s)</li>
           </ul>
-          <p className="mt-3 text-sm font-medium text-red-600">
+          <p className="mt-3 text-sm font-medium text-erreur">
             Cette action est irréversible.
           </p>
-          <label className="mt-4 block text-xs font-medium text-zinc-500">
+          <label className="mt-4 block text-xs font-medium tracking-wide text-texte-doux uppercase">
             Tapez {CONFIRM_WORD} pour confirmer
           </label>
           <input
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             autoFocus
-            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+            className="mt-1.5 w-full rounded-lg border border-bordure bg-surface px-3 py-2 text-sm text-texte placeholder:text-texte-tenu transition-colors hover:border-bordure-forte"
           />
           <div className="mt-4 flex justify-end gap-3">
             <button
               type="button"
               onClick={close}
-              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-45 border border-bordure-forte bg-surface text-texte hover:bg-surface-2"
             >
               Annuler
             </button>
@@ -86,7 +86,7 @@ export function DangerZone({
               type="button"
               onClick={handleConfirm}
               disabled={!canConfirm || loading}
-              className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-md bg-erreur px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {loading ? "Suppression…" : "Supprimer définitivement"}
             </button>

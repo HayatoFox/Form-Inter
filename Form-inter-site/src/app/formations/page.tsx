@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { SearchFilters } from "@/components/SearchFilters";
 import { FormationCard } from "@/components/FormationCard";
+import { Pagination } from "@/components/ui/Pagination";
 import { cleanupPastSessions } from "@/lib/session-cleanup";
 import { planifierSyncAuto } from "@/lib/backend/auto";
 import { debutDuJour, parseDateISO } from "@/lib/dates";
@@ -159,15 +160,19 @@ export default async function FormationsPage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Formations</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          {nombre.format(total)} formation{total > 1 ? "s" : ""} trouvée
-          {total > 1 ? "s" : ""}
-          {" · "}
-          {nombre.format(totalSessions)} session
-          {totalSessions > 1 ? "s" : ""} au total
+        <p className="text-sm text-texte-doux">
+          <span className="chiffres font-medium text-texte">
+            {nombre.format(total)}
+          </span>{" "}
+          formation{total > 1 ? "s" : ""}
+          <span className="text-texte-tenu"> · </span>
+          <span className="chiffres font-medium text-texte">
+            {nombre.format(totalSessions)}
+          </span>{" "}
+          session{totalSessions > 1 ? "s" : ""}
         </p>
       </div>
 
@@ -188,11 +193,20 @@ export default async function FormationsPage({
       />
 
       {formations.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-          Aucune formation ne correspond à ces critères.
-        </p>
+        <div className="rounded-xl border border-dashed border-bordure-forte px-6 py-14 text-center">
+          <p className="text-sm font-medium text-texte">
+            Aucune formation ne correspond à ces critères.
+          </p>
+          <p className="mx-auto mt-1.5 max-w-md text-sm text-texte-doux">
+            Élargissez la période, retirez un filtre, ou{" "}
+            <Link href="/formations" className="text-marque underline-offset-2 hover:underline">
+              repartez de la liste complète
+            </Link>
+            .
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-3">
           {formations.map((f) => (
             <FormationCard
               key={f.id}
@@ -203,23 +217,7 @@ export default async function FormationsPage({
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 text-sm">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <Link
-              key={p}
-              href={pageHref(p)}
-              className={`rounded-md px-3 py-1.5 ${
-                p === page
-                  ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
-                  : "border border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-              }`}
-            >
-              {p}
-            </Link>
-          ))}
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} href={pageHref} />
     </div>
   );
 }

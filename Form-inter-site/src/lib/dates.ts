@@ -62,6 +62,25 @@ export function versInputDate(date: Date): string {
 
 // Une session sans date de début est une offre à entrée/sortie permanente :
 // l'absence de dates suffit à la reconnaître.
+const decimal = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
+
+/**
+ * Durée lisible : « 1 jour », « 0,5 jour », « 3 jours ».
+ *
+ * L'unité arrive de la base au pluriel (la synchronisation pose « jours »), et
+ * le nombre peut être décimal — une demi-journée est un cas courant. Sans ce
+ * passage, le catalogue affiche « 1 jours » et « 0.5 jours ».
+ */
+export function formatDuree(
+  valeur: number | null | undefined,
+  unite: string | null | undefined
+): string | null {
+  if (valeur === null || valeur === undefined) return null;
+  const brute = (unite ?? "jours").trim();
+  const libelle = valeur <= 1 ? brute.replace(/s$/i, "") : brute;
+  return `${decimal.format(valeur)} ${libelle}`.trim();
+}
+
 export type PeriodeSession = {
   dateDebut: Date | null;
   dateFin: Date | null;
