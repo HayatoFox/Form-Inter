@@ -61,6 +61,10 @@ reste : sur un clone neuf, il n'y a pas d'étape `prisma migrate` à ne pas
 oublier — sans elle, le seed échouait sur `The table main.Organisme does not
 exist`.
 
+`npm run db:info` répond en trois lignes à « où est la base et qu'y a-t-il
+dedans » : chemin résolu, taille, comptes par table, et la commande à lancer
+selon ce qui manque.
+
 ⚠ `db:demo` vide les données métier de la base visée. Il refuse de tourner avec
 `NODE_ENV=production`.
 
