@@ -19,8 +19,8 @@ jamais une ligne rapatriée du backend.
 ```bash
 npm install                 # engendre aussi le client Prisma (postinstall)
 cp .env.example .env        # puis renseigner les valeurs
-npx prisma migrate deploy   # ou `migrate dev` en développement
-npm run db:seed             # organismes de départ + compte admin
+npm run db:seed             # applique les migrations, puis les organismes
+                            # de départ et le compte admin
 npm run dev                 # http://localhost:3000
 ```
 
@@ -46,8 +46,7 @@ ADMIN_EMAIL="admin@local"
 ADMIN_PASSWORD_SEED="demo"
 FIN
 
-npx prisma migrate deploy
-npm run db:demo
+npm run db:demo      # applique les migrations, puis remplit le catalogue
 npm run dev          # http://localhost:3000 — back office : admin@local / demo
 ```
 
@@ -56,6 +55,11 @@ très longs, sessions à entrée permanente sans dates, durées décimales
 (« 0,5 jour »), disponibilité tendue (l'orange d'accent), tarifs absents,
 sessions déjà passées. Il est **déterministe** : deux exécutions donnent le
 même catalogue, donc deux captures d'écran restent comparables.
+
+`db:seed`, `db:demo` et `db:setup` appliquent les migrations avant tout le
+reste : sur un clone neuf, il n'y a pas d'étape `prisma migrate` à ne pas
+oublier — sans elle, le seed échouait sur `The table main.Organisme does not
+exist`.
 
 ⚠ `db:demo` vide les données métier de la base visée. Il refuse de tourner avec
 `NODE_ENV=production`.
