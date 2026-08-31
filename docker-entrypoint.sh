@@ -5,13 +5,31 @@
 #   webapp          : site interne de consultation + back office
 set -euo pipefail
 
-CRON_SCHEDULE="${CRON_SCHEDULE:-0 6 * * *}"
+CRON_SCHEDULE="${CRON_SCHEDULE:-0 2 * * *}"
 
 # Les volumes sont montés root : on les rend accessibles à l'utilisateur
 # "ubuntu" (uid 1000, aligné sur l'utilisateur hôte habituel) qui exécute
 # le scrape, pour ne pas laisser de fichiers root sur l'hôte.
 mkdir -p /app/data /app/logs
 chown -R ubuntu:ubuntu /app/data /app/logs
+
+# Le scrape tourne toujours sous « ubuntu », et deux mécanismes vident son
+# environnement en chemin : `runuser` sans --preserve-environment, et cron, qui
+# ne transmet jamais l'environnement du conteneur. Les variables dont
+# `run_scraper.sh` a besoin pour prévenir le site sont donc déposées dans un
+# fichier qu'il relit lui-même. Sans cela, la notification marche au démarrage
+# du conteneur et échoue silencieusement toutes les nuits suivantes — le genre
+# de panne qu'on ne voit qu'après une semaine de catalogue figé.
+#
+# Le fichier porte un secret : 0600 pour l'utilisateur du scrape, jamais dans
+# /etc/cron.d qui doit rester lisible par tous.
+{
+    echo "SITE_SYNC_URL=${SITE_SYNC_URL:-}"
+    echo "CRON_SECRET=${CRON_SECRET:-}"
+    echo "SITE_SYNC_TIMEOUT=${SITE_SYNC_TIMEOUT:-900}"
+} > /app/.env-cron
+chmod 600 /app/.env-cron
+chown ubuntu:ubuntu /app/.env-cron
 
 case "${1:-cron}" in
     scrape)

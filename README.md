@@ -151,8 +151,9 @@ temps :
   rapatrier un catalogue à moitié écrit (les organismes pas encore scrapés
   n'ont aucune session courante). Les passages reportés apparaissent en
   « Reporté » dans Admin › Sources de données ;
-- une fois la collecte finie, la synchronisation part d'elle-même à la visite
-  suivante — ou tout de suite avec `./deploy.sh sync`.
+- une fois la collecte finie, le scraper prévient lui-même le site, qui
+  rapatrie dans la foulée (voir « Mise à jour quotidienne » ci-dessous). Pour
+  ne pas attendre, `./deploy.sh sync` force le passage.
 
 #### « Le site affiche 200 formations, le site de veille 3 900 sessions »
 
@@ -173,6 +174,46 @@ sur le LAN, laisser à `0`.
 
 Les identifiants sont dans `.env` et réaffichables avec `./deploy.sh secrets`.
 
+### Mise à jour quotidienne
+
+Le catalogue se rafraîchit tout seul, une fois par nuit, sans que personne
+n'ait à ouvrir une page :
+
+1. à `CRON_SCHEDULE` (défaut `0 2 * * *`, heure de Paris), le conteneur
+   `scraper` lance sa collecte ;
+2. à la fin du passage, `run_scraper.sh` appelle `notifier_site.py`, qui
+   demande au site de rapatrier — un POST sur `/api/cron/sync`, authentifié
+   par `CRON_SECRET` ;
+3. le site met à jour son catalogue et invalide ses pages.
+
+Le déclencheur est la **fin de la collecte**, et pas une seconde tâche
+planifiée à une heure fixe : un passage dure dix à quinze minutes, mais cela
+dépend des sites scrapés, et un ordonnanceur indépendant se tromperait les
+jours où il déborde.
+
+Ce que ça donne dans `./deploy.sh logs scraper` :
+
+```
+2026-08-31 02:14:07 : Site : synchronisation demandée à http://site:3000/api/cron/sync
+2026-08-31 02:14:31 : Site : synchronisé — 3874 ligne(s) reçue(s), 41 session(s) ajoutée(s), 12 mise(s) à jour, 208 retirée(s).
+```
+
+Quelques garde-fous :
+
+- si le site est éteint ou redémarre, la notification échoue **sans faire
+  passer une collecte réussie pour un échec** : la base du backend est à jour,
+  et le site rattrapera à la visite suivante ou au passage du lendemain ;
+- la notification part même quand le scrape a échoué : un organisme sur cinq
+  en erreur laisse les quatre autres à jour ;
+- `SITE_SYNC_URL` vide dans `.env` désactive complètement le mécanisme — le
+  scraper reste utilisable seul, sans site en face ;
+- `BACKEND_AUTO_SYNC=1` garde en plus le rafraîchissement à la visite quand le
+  dernier passage réussi date de plus de `BACKEND_SYNC_TTL_MINUTES` : c'est le
+  filet, plus le mécanisme principal.
+
+La date du dernier passage est lisible dans Admin › Sources de données, et le
+tableau de bord signale une synchronisation anormalement ancienne.
+
 ### Les trois services
 
 Image Ubuntu 24.04 pour les deux premiers (cron intégré, aucune dépendance
@@ -180,7 +221,7 @@ Python), image Node 22 pour le site.
 
 | Service | Conteneur | Port | Rôle |
 |---|---|---|---|
-| `scraper` | `scrap-formations` | — | collecte quotidienne (`CRON_SCHEDULE`, défaut 6 h ; `SCRAPE_AT_STARTUP=0` désactive le passage initial) |
+| `scraper` | `scrap-formations` | — | collecte quotidienne (`CRON_SCHEDULE`, défaut 2 h ; `SCRAPE_AT_STARTUP=0` désactive le passage initial) |
 | `webapp` | `scrap-webapp` | 8000 | site interne de veille + API JSON |
 | `site` | `scrap-site` | 3000 | site de consultation Next.js |
 
@@ -249,13 +290,18 @@ les fichiers créés dans `./data` restent donc à l'utilisateur hôte.
 ## Cron (sans Docker)
 
 `run_scraper.sh` est le point d'entrée prévu pour cron (journalise dans
-`logs/scrape_AAAA-MM.log`). Exemple pour un passage quotidien à 6 h :
+`logs/scrape_AAAA-MM.log`). Exemple pour un passage quotidien à 2 h :
 
 ```
-0 6 * * * "/home/rlancel/Documents/GitHub/Scrap site/run_scraper.sh"
+0 2 * * * SITE_SYNC_URL=https://forminter.exemple.com/api/cron/sync CRON_SECRET=... /chemin/vers/run_scraper.sh
 ```
 
 (à ajouter via `crontab -e`)
+
+Les deux variables sont facultatives : sans elles, le scrape a lieu et le site
+n'est pas prévenu. Avec elles, il se met à jour dans la foulée — c'est le même
+mécanisme que sous Docker, où l'entrypoint les dépose dans `/app/.env-cron`
+parce que cron ne transmet pas l'environnement du conteneur.
 
 ## Schéma de la base
 

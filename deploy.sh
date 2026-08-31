@@ -119,7 +119,9 @@ ENTETE
     poser_defaut TZ                       "Europe/Paris"
 
     # Collecte
-    poser_defaut CRON_SCHEDULE            "0 6 * * *"
+    # Une collecte par nuit, à 2 h de Paris. Le site est prévenu à la fin du
+    # passage : c'est ce qui rend sa mise à jour quotidienne automatique.
+    poser_defaut CRON_SCHEDULE            "0 2 * * *"
     poser_defaut SCRAPE_AT_STARTUP        "1"
 
     # Site interne (webapp Python)
@@ -134,6 +136,10 @@ ENTETE
     poser_defaut SITE_ADMIN_PASSWORD      "$(aleatoire 12)"
     poser_defaut SESSION_SECRET           "$(aleatoire 32)"
     poser_defaut CRON_SECRET              "$(aleatoire 32)"
+
+    # Adresse que le scraper appelle en fin de collecte. Vider pour désactiver
+    # la mise à jour automatique du site.
+    poser_defaut SITE_SYNC_URL            "http://site:3000/api/cron/sync"
 
     # Emplacement des données sur l'hôte. Déplaçables hors du projet quand le
     # dossier n'est pas partageable avec Docker (voir diagnostiquer_montage).
