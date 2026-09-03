@@ -11,6 +11,7 @@
  * de connexion sans moyen d'entrer.
  *
  * Le script est donc idempotent et bavard :
+ *   - pas de SESSION_SECRET → il en tire un et l'écrit dans .env ;
  *   - catalogue vide → il pose le jeu de démonstration ;
  *   - aucun compte → il en crée un ;
  *   - dans tous les cas, il RAPPELLE les identifiants à l'écran.
@@ -20,6 +21,8 @@
  */
 import "dotenv/config";
 import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -34,6 +37,52 @@ import { urlBaseDonnees } from "../src/lib/database-url";
 const EMAIL_DEFAUT = "admin@proinsec.local";
 const MOT_DE_PASSE_DEFAUT = "demo";
 
+const RACINE = path.join(__dirname, "..");
+
+/**
+ * Le cookie d'administration est signé avec SESSION_SECRET. Sans clé, la
+ * connexion partait en 500 (« SESSION_SECRET n'est pas défini dans .env ») :
+ * une erreur serveur, illisible depuis le formulaire, pour une variable dont
+ * rien ne rappelait qu'il fallait la remplir soi-même.
+ *
+ * Une clé de développement n'a aucune raison d'être saisie à la main : on la
+ * tire au sort. La règle est stricte — on n'écrase JAMAIS une clé existante,
+ * sous peine de déconnecter tout le monde à chaque démarrage — et on ne touche
+ * pas au fichier quand la variable vient de l'environnement (Docker, CI).
+ */
+function assurerSecret() {
+  if (process.env.SESSION_SECRET) return;
+
+  const secret = randomBytes(32).toString("hex");
+  const chemin = path.join(RACINE, ".env");
+  const exemple = path.join(RACINE, ".env.example");
+
+  let contenu = "";
+  if (fs.existsSync(chemin)) {
+    contenu = fs.readFileSync(chemin, "utf8");
+  } else if (fs.existsSync(exemple)) {
+    // Pas de .env du tout : on part du modèle commenté plutôt que d'un fichier
+    // nu, pour que les autres réglages restent documentés sur place.
+    contenu = fs.readFileSync(exemple, "utf8");
+  }
+
+  // La ligne existe mais est vide (`SESSION_SECRET=""`, le cas du .env.example
+  // recopié tel quel) : on la remplit sur place, sinon on l'ajoute.
+  const ligneVide = /^(\s*SESSION_SECRET\s*=\s*)(""|''|)\s*$/m;
+  if (ligneVide.test(contenu)) {
+    contenu = contenu.replace(ligneVide, `SESSION_SECRET="${secret}"`);
+  } else {
+    if (contenu && !contenu.endsWith("\n")) contenu += "\n";
+    contenu += `\n# Clé générée automatiquement au premier démarrage.\nSESSION_SECRET="${secret}"\n`;
+  }
+
+  fs.writeFileSync(chemin, contenu, { mode: 0o600 });
+  process.env.SESSION_SECRET = secret;
+  console.log(
+    "SESSION_SECRET manquant : une clé a été générée et écrite dans .env."
+  );
+}
+
 function encadre(lignes: string[]) {
   const largeur = Math.max(...lignes.map((l) => l.length));
   const barre = "─".repeat(largeur + 2);
@@ -43,6 +92,21 @@ function encadre(lignes: string[]) {
 }
 
 async function main() {
+  // Avant toute chose : sans clé de session, le back office est inaccessible
+  // même avec un compte valide. Un .env non inscriptible ne doit pas pour
+  // autant empêcher le reste de l'amorçage.
+  try {
+    assurerSecret();
+  } catch (erreur) {
+    console.error(
+      "SESSION_SECRET manquant et .env non modifiable :",
+      erreur instanceof Error ? erreur.message : erreur
+    );
+    console.error(
+      'Ajouter à la main : SESSION_SECRET="$(openssl rand -hex 32)"'
+    );
+  }
+
   const prisma = new PrismaClient({
     adapter: new PrismaBetterSqlite3({ url: urlBaseDonnees() }),
   });

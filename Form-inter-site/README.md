@@ -18,13 +18,19 @@ jamais une ligne rapatriée du backend.
 
 ```bash
 npm install                 # engendre aussi le client Prisma (postinstall)
-cp .env.example .env        # puis renseigner les valeurs
 npm run dev                 # migrations, amorçage, puis http://localhost:3000
 ```
 
-`npm run dev` fait trois choses avant de démarrer le serveur : il applique les
-migrations, il amorce la base si elle est vide, et il **affiche les
-identifiants du back office** dans le terminal :
+Aucun `.env` à préparer pour démarrer : l'amorçage le crée depuis
+`.env.example` s'il manque, et y écrit une `SESSION_SECRET` tirée au sort.
+Sans cette clé, la connexion au back office échouait sur une erreur 500
+(« SESSION_SECRET n'est pas défini dans .env ») que le formulaire ne savait pas
+expliquer. Une clé déjà présente n'est **jamais** remplacée — la réécrire
+déconnecterait tout le monde à chaque démarrage.
+
+`npm run dev` fait donc tout le nécessaire avant de démarrer le serveur : il
+applique les migrations, s'assure de la clé de session, amorce la base si elle
+est vide, et il **affiche les identifiants du back office** dans le terminal :
 
 ```
 ┌─────────────────────────────────────┐
@@ -59,18 +65,17 @@ une fois.
 
 ```bash
 cd Form-inter-site
-npm install                  # engendre le client Prisma au passage
-
-cat > .env <<FIN
-DATABASE_URL="file:./dev.db"
-SESSION_SECRET="$(openssl rand -hex 32)"
-ADMIN_EMAIL="admin@local"
-ADMIN_PASSWORD_SEED="demo"
-FIN
-
+npm install          # engendre le client Prisma au passage
 npm run db:demo      # applique les migrations, puis remplit le catalogue
-npm run dev          # http://localhost:3000 — back office : admin@local / demo
+npm run dev          # http://localhost:3000
+                     # back office : admin@proinsec.local / demo
 ```
+
+Pour choisir soi-même le compte, poser `ADMIN_EMAIL` et `ADMIN_PASSWORD_SEED`
+dans `.env` avant le seed. L'adresse doit être **valide au sens strict** : le
+formulaire de connexion la valide avec `z.string().email()`, qui refuse
+`admin@local` faute de point. Le compte existait, le mot de passe était bon, et
+la connexion répondait « Email ou mot de passe invalide ».
 
 Le jeu couvre volontairement ce qui fait tomber une mise en page : intitulés
 très longs, sessions à entrée permanente sans dates, durées décimales

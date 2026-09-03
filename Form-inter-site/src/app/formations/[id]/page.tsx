@@ -162,6 +162,12 @@ export default async function FormationDetailPage({
         </div>
       </div>
 
+      {/* Après « quand », « où » — mais la carte passe AVANT la liste des
+          dates. Placée après, sous vingt sessions et un dépliant de sessions
+          passées, plus personne ne la voyait : c'était le reproche fait à cette
+          page, « je peux seulement lire les infos ». */}
+      <CarteCentres formationId={formation.id} intitule={formation.intitule} />
+
       <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-lg font-semibold">Sessions à venir</h2>
         {upcoming.length === 0 && permanentes.length === 0 ? (
@@ -192,10 +198,6 @@ export default async function FormationDetailPage({
           </details>
         )}
       </div>
-
-      {/* Après « quand », « où ». La carte arrive une fois qu'on a vu les
-          dates : c'est l'ordre des questions qu'on se pose vraiment. */}
-      <CarteCentres formationId={formation.id} intitule={formation.intitule} />
     </div>
   );
 }

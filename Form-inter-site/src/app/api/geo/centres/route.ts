@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { centresAutour } from "@/lib/geo/centres";
+import { centreLePlusProche, centresAutour } from "@/lib/geo/centres";
 import { normaliserRayon } from "@/lib/geo/rayon";
 
 /**
@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ erreur: "Point invalide." }, { status: 400 });
   }
 
-  const centres = await centresAutour({ latitude, longitude }, rayon, {
-    formationId,
-    limite: 200,
-  });
+  const point = { latitude, longitude };
+  const centres = await centresAutour(point, rayon, { formationId, limite: 200 });
+  const plusProche =
+    centres.length === 0 ? await centreLePlusProche(point, { formationId }) : null;
 
-  return NextResponse.json({ rayon, centres });
+  return NextResponse.json({ rayon, centres, plusProche });
 }

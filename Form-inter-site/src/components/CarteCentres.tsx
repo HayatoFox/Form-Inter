@@ -51,10 +51,10 @@ export type CentreCarte = {
 type Depart = { latitude: number; longitude: number; libelle: string };
 
 /**
- * Le repère : le fût chanfreiné de la réglure, posé sur sa pointe. Pas la
- * punaise bleue par défaut de Leaflet — celle-là appartient à tout le monde,
- * celui-ci appartient à ce site. Le fût du mois courant est en bleu, comme
- * dans la réglure ; le point de départ du client aussi.
+ * Le repère, dessiné en SVG plutôt que chargé en image : les icônes de Leaflet
+ * arrivent par des URL relatives à sa feuille de style, que le bundler
+ * réécrit — elles finissent en 404 et les repères disparaissent. Le point de
+ * départ est en bleu, les centres en noir.
  */
 function marqueur(couleur: string, taille = 26): string {
   const l = taille * 0.62;
@@ -83,6 +83,8 @@ export function CarteCentres({
   const [adresse, setAdresse] = useState("");
   const [depart, setDepart] = useState<Depart | null>(null);
   const [centres, setCentres] = useState<CentreCarte[]>([]);
+  // Renseigné par le serveur uniquement quand le rayon ne ramène rien.
+  const [plusProche, setPlusProche] = useState<CentreCarte | null>(null);
   const [rayon, setRayon] = useState(50);
   // Le rayon affiché suit le curseur en continu ; le rayon DESSINÉ ne bouge
   // qu'au relâchement. Sans cette distinction, chaque pixel de glissement
@@ -199,6 +201,7 @@ export function CarteCentres({
       }
       setDepart(donnees.depart);
       setCentres(donnees.centres);
+      setPlusProche(donnees.plusProche ?? null);
     } catch {
       setErreur("Recherche impossible : vérifiez la connexion.");
     } finally {
@@ -223,6 +226,7 @@ export function CarteCentres({
         const donnees = await reponse.json();
         if (reponse.ok) {
           setCentres(donnees.centres);
+          setPlusProche(donnees.plusProche ?? null);
           setRayonDessine(km);
         }
       } finally {
@@ -332,6 +336,47 @@ export function CarteCentres({
         </>
       )}
 
+      {/* Un disque vide ne dit pas s'il n'y a personne dans la région ou si le
+          curseur est trop serré. Le serveur a cherché le centre le plus proche,
+          sans limite de distance : on donne la réponse, et le raccourci pour
+          aller la voir. */}
+      {depart && centres.length === 0 && plusProche && (
+        <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <p className="text-zinc-600 dark:text-zinc-400">
+            Aucun centre à moins de {rayonDessine} km. Le plus proche est{" "}
+            <span className="font-medium text-zinc-900 dark:text-zinc-100">
+              {plusProche.organismeNom} — {plusProche.ville}
+            </span>
+            , à{" "}
+            <span className="font-medium tabular-nums text-zinc-900 dark:text-zinc-100">
+              {formatDistance(plusProche.distanceKm)}
+            </span>
+            .
+          </p>
+          {plusProche.distanceKm <= RAYON_MAX ? (
+            <button
+              type="button"
+              onClick={() => {
+                const cible = Math.min(
+                  RAYON_MAX,
+                  Math.ceil(plusProche.distanceKm / RAYON_PAS) * RAYON_PAS
+                );
+                setRayon(cible);
+                void rafraichir(cible, toutesFormations);
+              }}
+              className="mt-2 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Élargir le rayon jusqu&apos;à lui
+            </button>
+          ) : (
+            <p className="mt-1 text-xs text-zinc-500">
+              C&apos;est au-delà du rayon maximal ({RAYON_MAX} km) : cette
+              formation ne se donne pas dans la région.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Le conteneur n'est monté qu'une fois un départ connu — et non pas
           rendu puis masqué. Une carte de France vide au chargement n'apprend
           rien et coûterait des tuiles pour rien ; surtout, Leaflet ne sait pas
@@ -351,7 +396,9 @@ export function CarteCentres({
             </span>{" "}
             centre
             {centres.length > 1 ? "s" : ""} à moins de{" "}
-            <span className="tabular-nums">{rayon} km</span>
+            {/* Le rayon DESSINÉ, pas la position du curseur : pendant un
+                glissement, la phrase doit décrire ce qui est affiché. */}
+            <span className="tabular-nums">{rayonDessine} km</span>
             {toutesFormations ? "" : ` proposant « ${intitule} »`}.
           </p>
           <p className="text-zinc-400">

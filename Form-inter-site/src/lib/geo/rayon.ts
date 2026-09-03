@@ -11,7 +11,14 @@
  * module neutre.
  */
 
-export const RAYON_MAX = 150;
+/**
+ * 200 km, pas 150. Les formations rares ne se donnent que dans quelques villes,
+ * et le premier essai fait sur le jeu de démonstration — un client à Rennes,
+ * le centre le plus proche à 153 km — tombait juste au-dessus de l'ancienne
+ * borne : la carte restait vide alors qu'une réponse existait. Une demi-journée
+ * de route reste une réponse utile quand il n'y en a pas d'autre.
+ */
+export const RAYON_MAX = 200;
 export const RAYON_PAS = 10;
 
 /** Ramène une saisie d'URL à un rayon utilisable. */

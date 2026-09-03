@@ -219,6 +219,60 @@ export async function centresAutour(
 }
 
 /**
+ * Le centre le plus proche, sans limite de distance.
+ *
+ * Il ne sert qu'à un cas : le rayon ne ramène rien. Un disque vide ne dit pas
+ * si la formation ne se donne nulle part alentour ou si le curseur est trop
+ * serré — et sur un catalogue national, c'est la seconde réponse neuf fois sur
+ * dix. Autant dire jusqu'où il faudrait aller. Toujours aucun appel réseau :
+ * une lecture de la table des centres.
+ */
+export async function centreLePlusProche(
+  point: Point,
+  options: { formationId?: string } = {}
+): Promise<CentreSitue | null> {
+  const candidats = await prisma.centre.findMany({
+    where: {
+      geoStatut: "ok",
+      ...(options.formationId && {
+        sessions: { some: { formationId: options.formationId } },
+      }),
+    },
+    select: {
+      id: true,
+      nom: true,
+      ville: true,
+      codePostal: true,
+      adresse: true,
+      latitude: true,
+      longitude: true,
+      organismeId: true,
+      organisme: { select: { nom: true } },
+    },
+  });
+
+  let meilleur: CentreSitue | null = null;
+  for (const c of candidats) {
+    if (c.latitude === null || c.longitude === null) continue;
+    const d = distanceKm(point, { latitude: c.latitude, longitude: c.longitude });
+    if (meilleur && d >= meilleur.distanceKm) continue;
+    meilleur = {
+      id: c.id,
+      nom: c.nom,
+      ville: c.ville,
+      codePostal: c.codePostal,
+      adresse: c.adresse,
+      latitude: c.latitude,
+      longitude: c.longitude,
+      organismeId: c.organismeId,
+      organismeNom: c.organisme.nom,
+      distanceKm: d,
+    };
+  }
+  return meilleur;
+}
+
+/**
  * Coordonnées d'une ville du catalogue, sans sortir sur le réseau si un centre
  * de cette ville est déjà localisé — le cas de très loin le plus fréquent,
  * puisque les villes proposées dans le filtre viennent justement des centres.

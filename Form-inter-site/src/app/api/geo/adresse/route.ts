@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { geocoder } from "@/lib/geo/nominatim";
-import { centresAutour } from "@/lib/geo/centres";
+import { centreLePlusProche, centresAutour } from "@/lib/geo/centres";
 import { normaliserRayon } from "@/lib/geo/rayon";
 
 /**
@@ -65,10 +65,16 @@ export async function GET(request: NextRequest) {
     limite: CENTRES_MAX,
   });
 
+  // Rien dans le rayon : on indique jusqu'où il faudrait aller, plutôt que de
+  // rendre une carte vide sans explication.
+  const plusProche =
+    centres.length === 0 ? await centreLePlusProche(point, { formationId }) : null;
+
   return NextResponse.json({
     depart: { ...point, libelle: resultat.coordonnees.libelle },
     depuisCache: resultat.depuisCache,
     rayon,
     centres,
+    plusProche,
   });
 }
