@@ -67,8 +67,10 @@ type PlusProche = { organismeNom: string; ville: string; distanceKm: number };
 type Suggestion = {
   libelle: string;
   detail: string;
-  genre: "centre" | "ville" | "cache";
-  immediat: boolean;
+  genre: "centre" | "ville" | "cache" | "adresse";
+  /** Présentes presque toujours : la suggestion se situe alors sans géocodage. */
+  latitude?: number;
+  longitude?: number;
 };
 
 export type CriteresInitiaux = {
@@ -220,20 +222,41 @@ export function CarteRecherche({
 
   function choisirSuggestion(suggestion: Suggestion) {
     setAdresse(suggestion.libelle);
+    setListeOuverte(false);
+
+    // La suggestion porte déjà ses coordonnées : il n'y a rien à géocoder. On
+    // pose le point de départ directement — pas d'aller-retour, pas une
+    // requête de plus vers un service d'adresses.
+    if (suggestion.latitude !== undefined && suggestion.longitude !== undefined) {
+      setErreur(null);
+      setChoisi(null);
+      setDepart({
+        latitude: suggestion.latitude,
+        longitude: suggestion.longitude,
+        libelle: suggestion.libelle,
+      });
+      return;
+    }
     void lancer(suggestion.libelle);
   }
 
   // --- Autocomplétion --------------------------------------------------------
 
-  // On ne demande des suggestions qu'une fois la frappe posée. C'est notre
-  // propre base — aucun appel sortant — mais huit lettres ne valent pas huit
-  // requêtes.
+  // On ne demande des suggestions qu'une fois la frappe posée. Le délai n'est
+  // plus une politesse envers notre propre base : depuis que la Base Adresse
+  // Nationale complète la liste, chaque lettre partirait vers un service
+  // public. 250 ms, c'est le temps entre deux touches d'une frappe courante.
   useEffect(() => {
-    const minuteur = setTimeout(() => setSaisieRetardee(adresse), 150);
+    const minuteur = setTimeout(() => setSaisieRetardee(adresse), 250);
     return () => clearTimeout(minuteur);
   }, [adresse]);
 
   useEffect(() => {
+    // Liste refermée, rien à demander. Le garde-fou n'est pas cosmétique :
+    // choisir une suggestion réécrit le champ, ce qui relançait le retardateur
+    // et allait redemander des suggestions pour une liste déjà fermée — un
+    // aller-retour serveur, et un appel au service d'adresses, pour rien.
+    if (!listeOuverte) return;
     const texte = saisieRetardee.trim();
     if (texte.length < 2) return;
     const controleur = new AbortController();
@@ -249,7 +272,7 @@ export function CarteRecherche({
         // L'autocomplétion est un confort : son échec ne doit rien annoncer.
       });
     return () => controleur.abort();
-  }, [saisieRetardee]);
+  }, [saisieRetardee, listeOuverte]);
 
   // Sous deux caractères, la liste précédente ne veut plus rien dire. On la
   // masque au rendu plutôt que de vider l'état depuis un effet.
@@ -581,7 +604,6 @@ export function CarteRecherche({
                     </span>
                     <span className="block truncate text-xs text-zinc-500">
                       {suggestion.detail}
-                      {suggestion.immediat && " · déjà situé"}
                     </span>
                   </button>
                 </li>

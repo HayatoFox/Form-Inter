@@ -1,20 +1,26 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { chercherAdresses } from "@/lib/geo/adresse-api";
 
 /**
- * Les adresses que le site connaît déjà, proposées à la saisie.
+ * Les adresses proposées pendant la frappe.
  *
- * Trois gisements, et le troisième est le plus utile :
+ * Deux sources, dans cet ordre :
  *
- * 1. les adresses des centres de formation ;
- * 2. les villes où il y a un centre ;
- * 3. **le cache de géocodage** — c'est-à-dire toutes les adresses de clients
- *    déjà cherchées par l'équipe. Choisir l'une d'elles ne coûte AUCUN appel à
- *    OpenStreetMap : la requête retombe exactement sur la clé du cache, qui
- *    répond de la base. Proposer ce qu'on a déjà résolu, c'est autant de trafic
- *    en moins vers un service qu'on n'a pas le droit de saturer.
+ * 1. **Ce que le site connaît déjà** — les adresses des centres de formation,
+ *    les villes où il y a un centre, et les adresses déjà cherchées par
+ *    l'équipe (le cache de géocodage). Aucune requête sortante, et ce sont les
+ *    réponses les plus souvent attendues : on retape rarement une adresse au
+ *    hasard, on retourne chez un client.
  *
- * Rien ici ne sort sur le réseau : c'est une lecture de notre propre base.
+ * 2. **La Base Adresse Nationale**, pour tout le reste — c'est-à-dire pour la
+ *    fonction principale d'une autocomplétion : aider à écrire une adresse
+ *    qu'on n'a jamais tapée. Voir `adresse-api.ts` pour le choix du service.
+ *
+ * Presque toutes les suggestions portent leurs COORDONNÉES, quelle que soit la
+ * source. Choisir dans la liste ne déclenche donc aucun géocodage : le point de
+ * départ est déjà là. L'autocomplétion, qu'on croirait coûteuse, est ce qui
+ * réduit le plus notre trafic sortant.
  */
 
 export type Suggestion = {
@@ -22,9 +28,10 @@ export type Suggestion = {
   libelle: string;
   /** Une ligne d'explication : qui, ou d'où ça vient. */
   detail: string;
-  genre: "centre" | "ville" | "cache";
-  /** Le géocodage est déjà en cache : la recherche ne coûtera rien dehors. */
-  immediat: boolean;
+  genre: "centre" | "ville" | "cache" | "adresse";
+  /** Présentes dès qu'on sait situer la suggestion sans rien demander. */
+  latitude?: number;
+  longitude?: number;
 };
 
 /**
@@ -65,33 +72,27 @@ export function adresseComplete(centre: {
 // Le cache peut grossir ; on ne relit pas tout pour proposer huit lignes. Les
 // plus récemment utilisées sont aussi les plus probables.
 const CACHE_RELU = 500;
+// Nos propres adresses ne prennent pas toute la place : au-delà, la liste
+// n'aiderait plus à écrire une adresse neuve.
+const MAXIMUM_LOCAL = 4;
 
-export async function suggererAdresses(
-  saisie: string,
-  limite = 8
-): Promise<Suggestion[]> {
-  const cle = plier(saisie);
-  if (cle.length < 2) return [];
-
-  const [centres, villes, caches] = await Promise.all([
+/** Nos adresses à nous. Aucune requête sortante. */
+async function suggestionsLocales(cle: string): Promise<Suggestion[]> {
+  const [centres, caches] = await Promise.all([
     prisma.centre.findMany({
-      where: { NOT: { adresse: null } },
       select: {
         adresse: true,
         codePostal: true,
         ville: true,
+        latitude: true,
+        longitude: true,
         organisme: { select: { nom: true } },
       },
-      take: 500,
-    }),
-    prisma.centre.findMany({
-      select: { ville: true },
-      distinct: ["ville"],
-      orderBy: { ville: "asc" },
+      take: 1000,
     }),
     prisma.geocodage.findMany({
       where: { trouve: true },
-      select: { requete: true, libelle: true },
+      select: { requete: true, libelle: true, latitude: true, longitude: true },
       orderBy: { utiliseLe: "desc" },
       take: CACHE_RELU,
     }),
@@ -101,28 +102,46 @@ export async function suggererAdresses(
   const vues = new Set<string>();
 
   function ajouter(suggestion: Suggestion) {
-    const cle = plier(suggestion.libelle);
-    if (!cle || vues.has(cle)) return;
-    vues.add(cle);
+    const empreinte = plier(suggestion.libelle);
+    if (!empreinte || vues.has(empreinte)) return;
+    vues.add(empreinte);
     candidates.push(suggestion);
   }
 
   for (const centre of centres) {
+    if (!centre.adresse) continue;
     ajouter({
       libelle: adresseComplete(centre),
       detail: `Centre — ${centre.organisme.nom}`,
       genre: "centre",
-      immediat: false,
+      ...(centre.latitude !== null && centre.longitude !== null
+        ? { latitude: centre.latitude, longitude: centre.longitude }
+        : {}),
     });
   }
-  for (const { ville } of villes) {
+
+  // Les villes viennent des mêmes lignes : la première qui porte des
+  // coordonnées les prête à la ville entière.
+  const villes = new Map<string, { latitude?: number; longitude?: number }>();
+  for (const centre of centres) {
+    const existante = villes.get(centre.ville);
+    if (existante?.latitude !== undefined) continue;
+    villes.set(
+      centre.ville,
+      centre.latitude !== null && centre.longitude !== null
+        ? { latitude: centre.latitude, longitude: centre.longitude }
+        : {}
+    );
+  }
+  for (const [ville, position] of villes) {
     ajouter({
       libelle: ville,
       detail: "Ville d'un centre de formation",
       genre: "ville",
-      immediat: false,
+      ...position,
     });
   }
+
   for (const entree of caches) {
     ajouter({
       // La clé du cache est déjà normalisée : la réécrire avec des majuscules
@@ -130,13 +149,15 @@ export async function suggererAdresses(
       libelle: presenter(entree.requete),
       detail: entree.libelle ?? "Déjà recherchée",
       genre: "cache",
-      immediat: true,
+      ...(entree.latitude !== null && entree.longitude !== null
+        ? { latitude: entree.latitude, longitude: entree.longitude }
+        : {}),
     });
   }
 
   // Ce qui commence par la saisie passe devant ce qui la contient : taper
   // « ren » doit proposer Rennes avant « 3 rue de Rennes, Paris ».
-  const retenues = candidates
+  return candidates
     .map((s) => ({ s, place: plier(s.libelle).indexOf(cle) }))
     .filter((c) => c.place >= 0)
     .sort(
@@ -145,7 +166,51 @@ export async function suggererAdresses(
         a.s.libelle.length - b.s.libelle.length ||
         a.s.libelle.localeCompare(b.s.libelle, "fr")
     )
-    .slice(0, limite);
+    .map((c) => c.s);
+}
 
-  return retenues.map((c) => c.s);
+export async function suggererAdresses(
+  saisie: string,
+  limite = 8
+): Promise<Suggestion[]> {
+  const cle = plier(saisie);
+  if (cle.length < 2) return [];
+
+  // Les deux sources sont interrogées de front : la locale répond en quelques
+  // millisecondes, l'autre en une centaine, et les attendre l'une après l'autre
+  // se verrait à la frappe.
+  // On demande six adresses, pas huit : la queue de liste d'un service de
+  // recherche floue est du bruit (« René 56130 Férel » pour « renn »), et un
+  // seuil de score ne trie pas — les scores baissent avec la longueur de la
+  // saisie, donc le même seuil couperait des résultats légitimes.
+  const [locales, distantes] = await Promise.all([
+    suggestionsLocales(cle),
+    chercherAdresses(saisie, 6),
+  ]);
+
+  const retenues: Suggestion[] = [];
+  const vues = new Set<string>();
+
+  function ajouter(suggestion: Suggestion) {
+    const empreinte = plier(suggestion.libelle);
+    if (!empreinte || vues.has(empreinte) || retenues.length >= limite) return;
+    vues.add(empreinte);
+    retenues.push(suggestion);
+  }
+
+  for (const locale of locales.slice(0, MAXIMUM_LOCAL)) ajouter(locale);
+  for (const distante of distantes) {
+    ajouter({
+      libelle: distante.libelle,
+      detail: distante.detail,
+      genre: "adresse",
+      latitude: distante.latitude,
+      longitude: distante.longitude,
+    });
+  }
+  // Si le service d'adresses n'a rien rendu — panne, ou requête trop courte
+  // pour lui — nos propres adresses reprennent toute la place.
+  for (const locale of locales) ajouter(locale);
+
+  return retenues;
 }

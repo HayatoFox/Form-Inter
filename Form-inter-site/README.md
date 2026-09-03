@@ -116,6 +116,10 @@ données. Ou tout lancer en conteneurs avec `./deploy.sh` à la racine du dépô
 | `BACKEND_AUTO_SYNC` | `1` (défaut) : resynchronise à la visite quand le catalogue est périmé |
 | `BACKEND_SYNC_TTL_MINUTES` | Fraîcheur maximale avant resynchronisation (défaut 60) |
 | `BACKEND_INCLURE_PASSEES` | `1` pour rapatrier aussi les sessions terminées (défaut `0`) |
+| `NOMINATIM_USER_AGENT`, `NOMINATIM_CONTACT` | Identification exigée par la politique d'usage de Nominatim |
+| `NOMINATIM_URL`, `NOMINATIM_PAYS` | Instance de géocodage et pays de restriction |
+| `ADRESSE_API_URL` | Service d'autocomplétion d'adresses (défaut : Géoplateforme IGN, qui héberge la BAN) |
+| `NEXT_PUBLIC_TUILES_URL`, `NEXT_PUBLIC_TUILES_ATTRIBUTION` | Fond de carte |
 
 Les réglages `BACKEND_*` ne sont que des **valeurs de départ** : ce qui est
 enregistré depuis `/admin/sources` est stocké en base et l'emporte. On peut donc
@@ -209,12 +213,13 @@ fin une adresse inconnue est exactement la boucle qui fait bannir.
 
 Trois entrées consomment ce dispositif :
 
-| Écran | Ce qu'il coûte dehors |
+| Écran | Ce qu'il coûte à Nominatim |
 |---|---|
 | Filtre « autour de » sur `/formations` | 0 (la ville est résolue depuis un centre déjà situé) |
 | Carte des centres sur une fiche formation | 1 appel maximum, pour l'adresse du client |
-| Accueil `/` | 1 appel maximum, pour l'adresse de l'entreprise |
-| Autocomplétion du champ adresse | 0, toujours — c'est notre propre base |
+| Accueil `/` — adresse choisie dans les suggestions | **0** : la suggestion porte ses coordonnées |
+| Accueil `/` — adresse tapée puis validée sans suggestion | 1 appel maximum |
+| Autocomplétion du champ adresse | 0 (autre service, voir ci-dessous) |
 
 ### L'accueil : la carte
 
@@ -229,15 +234,43 @@ de formations qui y correspondent, la colonne de gauche les détaille, et clique
 l'un ou l'autre relie les deux. La molette zoome sous le curseur ; cliquer un
 centre dans la liste amène la carte dessus et ouvre son infobulle.
 
-**Le champ adresse propose ce que le site connaît déjà**
-(`src/lib/geo/adresses.ts`) : adresses des centres, villes où il y a un centre,
-et surtout **les adresses déjà cherchées**, relues dans le cache de géocodage.
-La comparaison est insensible à la casse ET aux accents — « cesson sevigne »
-trouve « Cesson-Sévigné », ce que le `LIKE` de SQLite ne sait pas faire — parce
-que les deux chaînes sont repliées en JavaScript avant comparaison. Choisir une
-suggestion venue du cache retombe exactement sur sa clé : la recherche ne coûte
-alors rien à OpenStreetMap. C'est le seul endroit du site où proposer plus
-consomme moins.
+### L'autocomplétion du champ adresse
+
+Elle sert à écrire une adresse qu'on n'a **jamais** tapée : c'est sa raison
+d'être. Deux sources (`src/lib/geo/adresses.ts`) :
+
+1. **ce que le site connaît déjà** — adresses des centres, villes où il y a un
+   centre, et adresses déjà cherchées par l'équipe (le cache de géocodage). Ce
+   sont les réponses les plus souvent attendues : on retourne chez un client
+   plus souvent qu'on ne découvre une adresse ;
+2. **la Base Adresse Nationale** pour tout le reste, numéros de rue compris.
+
+Le service d'autocomplétion n'est **pas** Nominatim, et ce n'est pas un choix
+de confort : sa politique d'usage interdit explicitement l'autocomplétion sur
+l'instance publique — une frappe au clavier ne doit pas produire une requête.
+La BAN, elle, est un service public sans clé fait pour cet usage ; on y accède
+par la Géoplateforme de l'IGN qui l'héberge (`ADRESSE_API_URL` bascule vers
+`api-adresse.data.gouv.fr`, même contrat).
+
+**Chaque suggestion porte ses coordonnées**, quelle que soit la source. Choisir
+dans la liste ne déclenche donc aucun géocodage — le point de départ est déjà
+là. L'autocomplétion, qu'on croirait coûteuse, est ce qui réduit le plus notre
+trafic vers Nominatim : un parcours complet tient en deux requêtes, une pour
+les suggestions et une pour la recherche.
+
+Quatre garde-fous, parce qu'un champ de saisie est une machine à faire des
+requêtes : frappe retardée de 250 ms, requête en vol annulée par la suivante,
+cache mémoire des préfixes déjà demandés (5 min), et rien n'est demandé quand
+la liste est fermée — sans ce dernier point, choisir une suggestion réécrivait
+le champ et relançait une recherche de suggestions pour une liste invisible.
+
+La comparaison sur nos propres adresses est insensible à la casse ET aux
+accents : « cesson sevigne » trouve « Cesson-Sévigné », ce que le `LIKE` de
+SQLite ne sait pas faire, parce que les deux chaînes sont repliées en
+JavaScript avant comparaison.
+
+Si le service est injoignable, la liste se limite silencieusement à nos propres
+adresses : une suggestion absente ne doit pas afficher d'erreur.
 
 Ce direct ne coûte rien dehors — l'adresse part une fois, tout le reste
 n'interroge que la base — mais il ne doit pas non plus partir en rafale contre
