@@ -50,6 +50,30 @@ export async function deleteOrganisme(id: string) {
   redirect("/admin/organismes");
 }
 
+/**
+ * Position issue d'une adresse choisie dans les suggestions.
+ *
+ * Le service d'adresses rend les coordonnées avec chaque proposition : quand
+ * l'adresse vient de là, il n'y a rien à géocoder et le centre est posé sur la
+ * carte immédiatement, `geoStatut` à « ok ». Sans coordonnées, il part en file
+ * d'attente comme avant.
+ */
+function positionChoisie(data: {
+  latitude?: number;
+  longitude?: number;
+  geoLibelle?: string;
+}) {
+  if (data.latitude === undefined || data.longitude === undefined) return null;
+  return {
+    latitude: data.latitude,
+    longitude: data.longitude,
+    geoStatut: "ok",
+    geoLibelle: data.geoLibelle || null,
+    geoRequete: null,
+    geoLe: new Date(),
+  };
+}
+
 export async function createCentre(organismeId: string, formData: FormData) {
   const data = centreSchema.parse({ ...toEntries(formData), organismeId });
   await prisma.centre.create({
@@ -59,11 +83,14 @@ export async function createCentre(organismeId: string, formData: FormData) {
       codePostal: data.codePostal || null,
       adresse: data.adresse || null,
       organismeId: data.organismeId,
+      ...(positionChoisie(data) ?? {}),
     },
   });
   revalidatePath(`/admin/organismes/${organismeId}`);
+  revalidatePath("/admin/centres");
   revalidatePath("/formations");
   revalidatePath("/organismes");
+  revalidatePath("/");
 }
 
 /**
@@ -102,6 +129,7 @@ export async function updateCentre(
     avant.codePostal !== codePostal ||
     avant.ville !== data.ville;
   const villeChange = !avant || avant.ville !== data.ville;
+  const position = positionChoisie(data);
 
   await prisma.centre.update({
     where: { id: centreId },
@@ -110,19 +138,26 @@ export async function updateCentre(
       ville: data.ville,
       codePostal,
       adresse,
-      ...(lieuChange && {
-        geoStatut: "attente",
-        geoRequete: null,
-        geoLibelle: null,
-        geoLe: null,
-      }),
-      // Changer de commune invalide vraiment le point ; corriger une rue ne
-      // fait que le rendre approximatif.
-      ...(villeChange && { latitude: null, longitude: null }),
+      ...(position
+        ? // L'adresse vient des suggestions : sa position est connue, le centre
+          // apparaît sur la carte sans passer par la file d'attente.
+          position
+        : {
+            ...(lieuChange && {
+              geoStatut: "attente",
+              geoRequete: null,
+              geoLibelle: null,
+              geoLe: null,
+            }),
+            // Changer de commune invalide vraiment le point ; corriger une rue
+            // ne fait que le rendre approximatif.
+            ...(villeChange && { latitude: null, longitude: null }),
+          }),
     },
   });
 
   revalidatePath(`/admin/organismes/${organismeId}`);
+  revalidatePath("/admin/centres");
   revalidatePath("/admin/sources");
   revalidatePath("/formations");
   revalidatePath("/organismes");
@@ -132,6 +167,8 @@ export async function updateCentre(
 export async function deleteCentre(organismeId: string, centreId: string) {
   await prisma.centre.delete({ where: { id: centreId } });
   revalidatePath(`/admin/organismes/${organismeId}`);
+  revalidatePath("/admin/centres");
   revalidatePath("/formations");
   revalidatePath("/organismes");
+  revalidatePath("/");
 }

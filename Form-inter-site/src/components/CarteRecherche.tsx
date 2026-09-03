@@ -7,6 +7,7 @@ import type { Map as CarteLeaflet, LayerGroup, Circle, Marker } from "leaflet";
 import { formatDistance } from "@/lib/geo/distance";
 import { RAYON_MAX, RAYON_PAS } from "@/lib/geo/rayon";
 import { formatDateCourt } from "@/lib/dates";
+import { ChampAdresse, type Suggestion } from "@/components/ChampAdresse";
 import {
   ATTRIBUTION,
   COULEUR_CENTRE,
@@ -63,15 +64,6 @@ type CentreResultat = {
 };
 
 type PlusProche = { organismeNom: string; ville: string; distanceKm: number };
-
-type Suggestion = {
-  libelle: string;
-  detail: string;
-  genre: "centre" | "ville" | "cache" | "adresse";
-  /** Présentes presque toujours : la suggestion se situe alors sans géocodage. */
-  latitude?: number;
-  longitude?: number;
-};
 
 export type CriteresInitiaux = {
   adresse?: string;
@@ -147,12 +139,6 @@ export function CarteRecherche({
   const [situation, setSituation] = useState(adresseUtilisable(initial.adresse));
   const [erreur, setErreur] = useState<string | null>(null);
 
-  // Autocomplétion depuis les adresses déjà connues du site.
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [listeOuverte, setListeOuverte] = useState(false);
-  const [indexActif, setIndexActif] = useState(-1);
-  const [saisieRetardee, setSaisieRetardee] = useState("");
-
   const [q, setQ] = useState(initial.q ?? "");
   const [qRetarde, setQRetarde] = useState(initial.q ?? "");
   const [domaineId, setDomaineId] = useState(initial.domaine ?? "");
@@ -196,13 +182,11 @@ export function CarteRecherche({
 
   const idAdresse = useId();
   const idRayon = useId();
-  const idListe = useId();
 
   // --- Adresse ---------------------------------------------------------------
 
   async function lancer(texte: string) {
     if (!adresseUtilisable(texte)) return;
-    setListeOuverte(false);
     setSituation(true);
     setErreur(null);
     const resultat = await resoudreAdresse(texte);
@@ -222,7 +206,6 @@ export function CarteRecherche({
 
   function choisirSuggestion(suggestion: Suggestion) {
     setAdresse(suggestion.libelle);
-    setListeOuverte(false);
 
     // La suggestion porte déjà ses coordonnées : il n'y a rien à géocoder. On
     // pose le point de départ directement — pas d'aller-retour, pas une
@@ -238,72 +221,6 @@ export function CarteRecherche({
       return;
     }
     void lancer(suggestion.libelle);
-  }
-
-  // --- Autocomplétion --------------------------------------------------------
-
-  // On ne demande des suggestions qu'une fois la frappe posée. Le délai n'est
-  // plus une politesse envers notre propre base : depuis que la Base Adresse
-  // Nationale complète la liste, chaque lettre partirait vers un service
-  // public. 250 ms, c'est le temps entre deux touches d'une frappe courante.
-  useEffect(() => {
-    const minuteur = setTimeout(() => setSaisieRetardee(adresse), 250);
-    return () => clearTimeout(minuteur);
-  }, [adresse]);
-
-  useEffect(() => {
-    // Liste refermée, rien à demander. Le garde-fou n'est pas cosmétique :
-    // choisir une suggestion réécrit le champ, ce qui relançait le retardateur
-    // et allait redemander des suggestions pour une liste déjà fermée — un
-    // aller-retour serveur, et un appel au service d'adresses, pour rien.
-    if (!listeOuverte) return;
-    const texte = saisieRetardee.trim();
-    if (texte.length < 2) return;
-    const controleur = new AbortController();
-    fetch(`/api/geo/suggestions?q=${encodeURIComponent(texte)}`, {
-      signal: controleur.signal,
-    })
-      .then((reponse) => reponse.json())
-      .then((donnees) => {
-        setSuggestions(donnees.suggestions ?? []);
-        setIndexActif(-1);
-      })
-      .catch(() => {
-        // L'autocomplétion est un confort : son échec ne doit rien annoncer.
-      });
-    return () => controleur.abort();
-  }, [saisieRetardee, listeOuverte]);
-
-  // Sous deux caractères, la liste précédente ne veut plus rien dire. On la
-  // masque au rendu plutôt que de vider l'état depuis un effet.
-  const suggestionsVisibles =
-    listeOuverte && saisieRetardee.trim().length >= 2 ? suggestions : [];
-
-  function toucheAdresse(evenement: React.KeyboardEvent<HTMLInputElement>) {
-    if (evenement.key === "Escape") {
-      setListeOuverte(false);
-      return;
-    }
-    if (evenement.key === "ArrowDown" || evenement.key === "ArrowUp") {
-      if (suggestions.length === 0) return;
-      evenement.preventDefault();
-      if (!listeOuverte) {
-        setListeOuverte(true);
-        setIndexActif(0);
-        return;
-      }
-      const pas = evenement.key === "ArrowDown" ? 1 : -1;
-      const total = suggestionsVisibles.length;
-      if (total === 0) return;
-      setIndexActif((precedent) => (precedent + pas + total) % total);
-      return;
-    }
-    if (evenement.key === "Enter" && indexActif >= 0 && suggestionsVisibles[indexActif]) {
-      // Entrée valide la suggestion surlignée, et NON le formulaire : sans ce
-      // garde-fou, la flèche puis Entrée cherchait le texte tapé à moitié.
-      evenement.preventDefault();
-      choisirSuggestion(suggestionsVisibles[indexActif]);
-    }
   }
 
   // Une adresse portée par l'URL — le lien « Voir sur la carte » depuis la
@@ -549,67 +466,14 @@ export function CarteRecherche({
         <label htmlFor={idAdresse} className="sr-only">
           Adresse de l&apos;entreprise
         </label>
-        <div className="relative min-w-0 flex-1">
-          <input
+        <div className="min-w-0 flex-1">
+          <ChampAdresse
             id={idAdresse}
-            type="text"
-            value={adresse}
-            onChange={(e) => {
-              setAdresse(e.target.value);
-              setListeOuverte(true);
-            }}
-            onKeyDown={toucheAdresse}
-            onBlur={() => setListeOuverte(false)}
+            valeur={adresse}
+            onChange={setAdresse}
+            onChoisir={choisirSuggestion}
             placeholder="Adresse de l'entreprise — 12 rue de la Paix, 35000 Rennes"
-            // Le navigateur proposerait ses propres adresses par-dessus les
-            // nôtres, et les deux listes se recouvriraient.
-            autoComplete="off"
-            role="combobox"
-            aria-expanded={suggestionsVisibles.length > 0}
-            aria-controls={idListe}
-            aria-autocomplete="list"
-            aria-activedescendant={
-              indexActif >= 0 ? `${idListe}-${indexActif}` : undefined
-            }
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
-
-          {suggestionsVisibles.length > 0 && (
-            <ul
-              id={idListe}
-              role="listbox"
-              className="absolute z-1000 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-zinc-300 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              {suggestionsVisibles.map((suggestion, index) => (
-                <li key={`${suggestion.genre}-${suggestion.libelle}`}>
-                  <button
-                    type="button"
-                    id={`${idListe}-${index}`}
-                    role="option"
-                    aria-selected={index === indexActif}
-                    // Le clic doit être pris AVANT que le champ perde le focus,
-                    // sinon `onBlur` referme la liste et l'élément disparaît
-                    // sous le curseur avant d'avoir reçu le clic.
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => choisirSuggestion(suggestion)}
-                    onMouseEnter={() => setIndexActif(index)}
-                    className={`block w-full px-3 py-2 text-left text-sm ${
-                      index === indexActif
-                        ? "bg-zinc-100 dark:bg-zinc-800"
-                        : ""
-                    }`}
-                  >
-                    <span className="block truncate font-medium">
-                      {suggestion.libelle}
-                    </span>
-                    <span className="block truncate text-xs text-zinc-500">
-                      {suggestion.detail}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
         <button
           type="submit"

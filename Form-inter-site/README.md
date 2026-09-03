@@ -298,17 +298,36 @@ ville : c'est ce que les organismes publient dans leur calendrier. Un centre
 importé du backend est donc placé au centre de sa commune, ce qui suffit pour
 un rayon de trente kilomètres mais pas pour une convocation.
 
-Elle se saisit dans Admin › Organismes › *l'organisme* : chaque centre y est
-modifiable, adresse comprise. Deux conséquences, gérées :
+Elle se saisit dans **Admin › Centres**, un écran qui liste tous les centres —
+c'est le centre qui porte l'adresse, pas l'organisme, et un siège social n'est
+pas un lieu de formation. Les centres absents de la carte remontent en tête,
+puisque ce sont eux qui restent à faire ; un filtre les isole. La fiche d'un
+organisme garde la même fiche de centre, pour corriger au passage.
 
-- **modifier un lieu remet le centre en file de géocodage** (`geoStatut` repasse
-  à `attente`), sinon ses coordonnées continueraient de désigner l'ancienne
-  adresse ;
-- **ses coordonnées ne sont effacées que si la VILLE change.** Corriger une rue
-  dans la même commune laisse l'ancien point à quelques centaines de mètres,
-  ce qui vaut mieux qu'un centre disparu de la carte le temps du prochain
-  passage. C'est pourquoi la carte retient les centres qui *ont des
-  coordonnées*, et non ceux dont le statut vaut `ok`.
+**Le champ adresse y est celui de la carte** — le composant
+`src/components/ChampAdresse.tsx`, pas une copie — mais ce qu'on fait de la
+suggestion diffère : la carte en tire un point de départ, ici on remplit rue,
+code postal et ville, **et on pose le centre sur la carte**. Le service rend les
+coordonnées avec chaque proposition, donc choisir dans la liste situe le centre
+dès l'enregistrement (`geoStatut` à `ok`), sans attendre le prochain passage de
+géocodage — une requête par seconde, soit une minute pour quarante centres.
+
+Quatre points de vigilance, tous tenus :
+
+- **une adresse retouchée à la main après un choix oublie les coordonnées.**
+  Elles ne décriraient plus ce qui est écrit, et un point faux qui a l'air juste
+  est pire qu'un point manquant : le centre repart en file de géocodage ;
+- **saisie entièrement manuelle** (sans passer par la liste) : comportement
+  d'avant, le centre part en file de géocodage ;
+- **le nom d'un centre rapatrié du backend n'est pas modifiable.** La
+  synchronisation le retrouve *par son nom* ; le renommer ici aurait fait créer
+  un doublon au passage suivant, avec les sessions réparties entre les deux. Elle
+  ne crée que les centres manquants et ne réécrit jamais une adresse saisie ici ;
+- **les coordonnées ne sont effacées que si la VILLE change.** Corriger une rue
+  dans la même commune laisse l'ancien point à quelques centaines de mètres, ce
+  qui vaut mieux qu'un centre disparu de la carte le temps du prochain passage.
+  C'est pourquoi la carte retient les centres qui *ont des coordonnées*, et non
+  ceux dont le statut vaut `ok`.
 
 ## Dates
 

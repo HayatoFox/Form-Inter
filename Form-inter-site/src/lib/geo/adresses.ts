@@ -32,6 +32,13 @@ export type Suggestion = {
   /** Présentes dès qu'on sait situer la suggestion sans rien demander. */
   latitude?: number;
   longitude?: number;
+  // Les morceaux, quand la source les distingue. Le formulaire d'un centre de
+  // formation les range dans trois colonnes : sans eux, choisir une suggestion
+  // remplirait une seule case avec « 3 Boulevard de Dézerseul 35510
+  // Cesson-Sévigné », code postal et ville compris.
+  rue?: string;
+  codePostal?: string;
+  ville?: string;
 };
 
 /**
@@ -114,6 +121,9 @@ async function suggestionsLocales(cle: string): Promise<Suggestion[]> {
       libelle: adresseComplete(centre),
       detail: `Centre — ${centre.organisme.nom}`,
       genre: "centre",
+      rue: centre.adresse,
+      codePostal: centre.codePostal ?? undefined,
+      ville: centre.ville,
       ...(centre.latitude !== null && centre.longitude !== null
         ? { latitude: centre.latitude, longitude: centre.longitude }
         : {}),
@@ -138,6 +148,7 @@ async function suggestionsLocales(cle: string): Promise<Suggestion[]> {
       libelle: ville,
       detail: "Ville d'un centre de formation",
       genre: "ville",
+      ville,
       ...position,
     });
   }
@@ -206,6 +217,9 @@ export async function suggererAdresses(
       genre: "adresse",
       latitude: distante.latitude,
       longitude: distante.longitude,
+      rue: distante.rue,
+      codePostal: distante.codePostal,
+      ville: distante.ville,
     });
   }
   // Si le service d'adresses n'a rien rendu — panne, ou requête trop courte

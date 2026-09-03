@@ -101,7 +101,10 @@ export function Localisation({
 
       <p className="mt-4 border-t border-zinc-200 pt-3 text-xs text-zinc-500 dark:border-zinc-800">
         Cache de géocodage : {cache.total} requête(s) mémorisée(s) —{" "}
-        {cache.trouves} résolue(s) et {cache.echecs} sans résultat. Chacune est
+        {cache.trouves} résolue(s) et {cache.echecs}{" "}
+        {/* JSX rogne l'espace de tête d'un bloc de texte qui court sur
+            plusieurs lignes : sans ce `{" "}` on lisait « 0sans résultat ». */}
+        sans résultat. Chacune est
         un appel réseau que le site n&apos;a plus à refaire, y compris les
         échecs : sans eux, une adresse mal saisie repartirait sur le réseau à
         chaque affichage.

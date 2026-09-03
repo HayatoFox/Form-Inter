@@ -50,12 +50,30 @@ export const organismeSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
+/**
+ * Coordonnée facultative arrivant d'un formulaire : chaîne vide = absente.
+ * Les bornes ne sont pas décoratives — un champ caché est modifiable, et une
+ * latitude de 1000 poserait un repère nulle part.
+ */
+const coordonneeOptionnelle = (max: number) =>
+  z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : v),
+    z.coerce.number().min(-max).max(max).optional()
+  );
+
 export const centreSchema = z.object({
   nom: z.string().trim().min(1, "Le nom du centre est requis"),
   ville: z.string().trim().min(1, "La ville est requise"),
   codePostal: z.string().trim().optional(),
   adresse: z.string().trim().optional(),
   organismeId: z.string().trim().min(1),
+  // Renseignées quand l'adresse a été choisie dans les suggestions : le
+  // service en rend les coordonnées, donc le centre peut être posé sur la
+  // carte tout de suite, sans attendre une passe de géocodage.
+  latitude: coordonneeOptionnelle(90),
+  longitude: coordonneeOptionnelle(180),
+  /** Libellé exact de la suggestion retenue, pour trace. */
+  geoLibelle: z.string().trim().optional(),
 });
 
 export const domaineSchema = z.object({

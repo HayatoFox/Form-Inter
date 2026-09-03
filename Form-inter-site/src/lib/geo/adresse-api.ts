@@ -47,6 +47,12 @@ export type AdresseProposee = {
   longitude: number;
   /** « adresse » (numéro), « voie », « commune » ou « lieu-dit ». */
   precision: "adresse" | "voie" | "commune" | "lieu-dit";
+  // Les morceaux, séparément : le champ adresse d'un centre de formation les
+  // range dans trois colonnes distinctes, et découper le libellé à coups
+  // d'expression régulière serait fragile là où le service les donne déjà.
+  rue?: string;
+  codePostal?: string;
+  ville?: string;
 };
 
 type Entree = { expire: number; resultats: AdresseProposee[] };
@@ -110,6 +116,8 @@ export async function chercherAdresses(
           type?: string;
           context?: string;
           city?: string;
+          postcode?: string;
+          name?: string;
         };
       }[];
     };
@@ -132,6 +140,14 @@ export async function chercherAdresses(
         latitude,
         longitude,
         precision,
+        // `name` vaut « 3 Boulevard de Dézerseul » pour une adresse, et le nom
+        // de la commune pour une commune : dans ce dernier cas il n'y a pas de
+        // rue à ranger.
+        ...(precision === "adresse" || precision === "voie"
+          ? { rue: proprietes.name }
+          : {}),
+        codePostal: proprietes.postcode,
+        ville: proprietes.city,
       });
     }
 
