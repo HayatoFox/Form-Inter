@@ -129,9 +129,9 @@ export default async function FormationsPage({
     return `/formations?${sp.toString()}`;
   }
 
-  // Les mêmes critères, portés vers la carte : passer d'une vue à l'autre ne
-  // doit pas obliger à ressaisir sa recherche.
-  const versCarte = `/carte?${parametresRecherche(criteres, { adresse: ville }).toString()}`;
+  // Les mêmes critères, portés vers la carte — qui est l'accueil du site.
+  // Passer d'une vue à l'autre ne doit pas obliger à ressaisir sa recherche.
+  const versCarte = `/?${parametresRecherche(criteres, { adresse: ville }).toString()}`;
 
   return (
     <div className="flex flex-col gap-6">

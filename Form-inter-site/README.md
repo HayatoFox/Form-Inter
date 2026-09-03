@@ -213,15 +213,31 @@ Trois entrées consomment ce dispositif :
 |---|---|
 | Filtre « autour de » sur `/formations` | 0 (la ville est résolue depuis un centre déjà situé) |
 | Carte des centres sur une fiche formation | 1 appel maximum, pour l'adresse du client |
-| Page `/carte` | 1 appel maximum, pour l'adresse de l'entreprise |
+| Accueil `/` | 1 appel maximum, pour l'adresse de l'entreprise |
+| Autocomplétion du champ adresse | 0, toujours — c'est notre propre base |
 
-### La page `/carte`
+### L'accueil : la carte
 
 L'entrée par le lieu, en regard de `/formations` qui est l'entrée par la liste.
+C'est la question la plus fréquente — « qu'est-ce qui se donne autour de cette
+entreprise ? » — donc elle est en page d'accueil ; `/carte`, où la page a vécu
+un temps, y redirige en conservant les paramètres.
+
 On pose l'adresse de l'entreprise, on règle mot-clé, domaine, organisme, dates
 et rayon, et **les repères suivent en direct** : chaque repère porte le nombre
 de formations qui y correspondent, la colonne de gauche les détaille, et cliquer
-l'un ou l'autre relie les deux.
+l'un ou l'autre relie les deux. La molette zoome sous le curseur ; cliquer un
+centre dans la liste amène la carte dessus et ouvre son infobulle.
+
+**Le champ adresse propose ce que le site connaît déjà**
+(`src/lib/geo/adresses.ts`) : adresses des centres, villes où il y a un centre,
+et surtout **les adresses déjà cherchées**, relues dans le cache de géocodage.
+La comparaison est insensible à la casse ET aux accents — « cesson sevigne »
+trouve « Cesson-Sévigné », ce que le `LIKE` de SQLite ne sait pas faire — parce
+que les deux chaînes sont repliées en JavaScript avant comparaison. Choisir une
+suggestion venue du cache retombe exactement sur sa clé : la recherche ne coûte
+alors rien à OpenStreetMap. C'est le seul endroit du site où proposer plus
+consomme moins.
 
 Ce direct ne coûte rien dehors — l'adresse part une fois, tout le reste
 n'interroge que la base — mais il ne doit pas non plus partir en rafale contre
@@ -237,9 +253,29 @@ suffirait d'ajouter un critère d'un côté pour que les deux ne comptent plus
 pareil.
 
 Deux limites assumées : les distances sont **à vol d'oiseau** (le serveur public
-d'OSRM interdit l'usage en production), et la recherche par mot-clé est
-**sensible aux accents** — « electrique » ne trouve pas « électrique », faute de
-`unaccent` en SQLite.
+d'OSRM interdit l'usage en production), et la recherche par mot-clé du catalogue
+est **sensible aux accents** — « electrique » ne trouve pas « électrique »,
+faute de `unaccent` en SQLite. Le champ adresse, lui, n'a pas ce défaut : ses
+suggestions sont comparées en mémoire.
+
+### L'adresse de rue d'un centre
+
+**Elle n'arrive par aucun chemin automatique.** Les scrapers ne relèvent que la
+ville : c'est ce que les organismes publient dans leur calendrier. Un centre
+importé du backend est donc placé au centre de sa commune, ce qui suffit pour
+un rayon de trente kilomètres mais pas pour une convocation.
+
+Elle se saisit dans Admin › Organismes › *l'organisme* : chaque centre y est
+modifiable, adresse comprise. Deux conséquences, gérées :
+
+- **modifier un lieu remet le centre en file de géocodage** (`geoStatut` repasse
+  à `attente`), sinon ses coordonnées continueraient de désigner l'ancienne
+  adresse ;
+- **ses coordonnées ne sont effacées que si la VILLE change.** Corriger une rue
+  dans la même commune laisse l'ancien point à quelques centaines de mètres,
+  ce qui vaut mieux qu'un centre disparu de la carte le temps du prochain
+  passage. C'est pourquoi la carte retient les centres qui *ont des
+  coordonnées*, et non ceux dont le statut vaut `ok`.
 
 ## Dates
 

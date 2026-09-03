@@ -66,6 +66,69 @@ export async function createCentre(organismeId: string, formData: FormData) {
   revalidatePath("/organismes");
 }
 
+/**
+ * Modifier un centre — et notamment lui donner son adresse de rue.
+ *
+ * Elle n'arrive par aucun autre chemin : les scrapers ne relèvent que la ville,
+ * et jusqu'ici un centre n'était modifiable qu'à sa création. Autrement dit,
+ * tous les centres rapatriés du backend étaient condamnés à rester au
+ * centre-ville de leur commune, sur la carte comme dans une convocation.
+ *
+ * Quand l'adresse, le code postal ou la ville changent, le centre RETOURNE en
+ * file de géocodage : ses coordonnées désignent l'ancienne adresse.
+ *
+ * Elles ne sont pour autant effacées que si la VILLE change. Une rue corrigée
+ * dans la même commune laisse l'ancien point à quelques centaines de mètres :
+ * c'est la meilleure réponse disponible en attendant l'affinage, et bien mieux
+ * qu'un centre qui disparaît de la carte parce qu'on a pris la peine de
+ * préciser son adresse.
+ */
+export async function updateCentre(
+  organismeId: string,
+  centreId: string,
+  formData: FormData
+) {
+  const data = centreSchema.parse({ ...toEntries(formData), organismeId });
+  const avant = await prisma.centre.findUnique({
+    where: { id: centreId },
+    select: { adresse: true, codePostal: true, ville: true },
+  });
+
+  const adresse = data.adresse || null;
+  const codePostal = data.codePostal || null;
+  const lieuChange =
+    !avant ||
+    avant.adresse !== adresse ||
+    avant.codePostal !== codePostal ||
+    avant.ville !== data.ville;
+  const villeChange = !avant || avant.ville !== data.ville;
+
+  await prisma.centre.update({
+    where: { id: centreId },
+    data: {
+      nom: data.nom,
+      ville: data.ville,
+      codePostal,
+      adresse,
+      ...(lieuChange && {
+        geoStatut: "attente",
+        geoRequete: null,
+        geoLibelle: null,
+        geoLe: null,
+      }),
+      // Changer de commune invalide vraiment le point ; corriger une rue ne
+      // fait que le rendre approximatif.
+      ...(villeChange && { latitude: null, longitude: null }),
+    },
+  });
+
+  revalidatePath(`/admin/organismes/${organismeId}`);
+  revalidatePath("/admin/sources");
+  revalidatePath("/formations");
+  revalidatePath("/organismes");
+  revalidatePath("/");
+}
+
 export async function deleteCentre(organismeId: string, centreId: string) {
   await prisma.centre.delete({ where: { id: centreId } });
   revalidatePath(`/admin/organismes/${organismeId}`);

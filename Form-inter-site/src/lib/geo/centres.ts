@@ -172,9 +172,14 @@ export async function centresAutour(
 ): Promise<CentreSitue[]> {
   const boite = boiteEnglobante(point, rayonKm);
 
+  // Le critère est « ce centre a des coordonnées », pas « son statut est ok ».
+  // La nuance compte depuis qu'on peut corriger une adresse au back office :
+  // le centre repasse alors en file de géocodage, et le filtrer sur son statut
+  // le faisait DISPARAÎTRE de la carte jusqu'au passage suivant. Renseigner une
+  // adresse plus précise ne doit pas faire perdre le centre ; ses coordonnées
+  // d'avant restent la meilleure réponse disponible en attendant l'affinage.
   const candidats = await prisma.centre.findMany({
     where: {
-      geoStatut: "ok",
       latitude: { gte: boite.latMin, lte: boite.latMax },
       longitude: { gte: boite.lonMin, lte: boite.lonMax },
       ...(options.formationId && {
@@ -233,7 +238,9 @@ export async function centreLePlusProche(
 ): Promise<CentreSitue | null> {
   const candidats = await prisma.centre.findMany({
     where: {
-      geoStatut: "ok",
+      // Même critère que `centresAutour` : des coordonnées, quel que soit le
+      // statut de fraîcheur.
+      NOT: { latitude: null },
       ...(options.formationId && {
         sessions: { some: { formationId: options.formationId } },
       }),

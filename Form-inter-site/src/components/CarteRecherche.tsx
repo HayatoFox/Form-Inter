@@ -64,6 +64,13 @@ type CentreResultat = {
 
 type PlusProche = { organismeNom: string; ville: string; distanceKm: number };
 
+type Suggestion = {
+  libelle: string;
+  detail: string;
+  genre: "centre" | "ville" | "cache";
+  immediat: boolean;
+};
+
 export type CriteresInitiaux = {
   adresse?: string;
   q?: string;
@@ -123,6 +130,13 @@ export function CarteRecherche({
   // de départ ou le rayon a changé : recadrer à chaque filtre annulerait le
   // déplacement que le visiteur vient de faire à la main.
   const dernierCadrage = useRef<string>("");
+  // Repères indexés par centre, pour rouvrir une infobulle après un redessin.
+  const marqueurs = useRef(new Map<string, Marker>());
+  // Ce qu'il reste à faire une fois les repères reconstruits : rouvrir une
+  // bulle, et éventuellement amener la carte dessus.
+  const apresDessin = useRef<{ centreId: string; recentrer: boolean } | null>(
+    null
+  );
 
   const [adresse, setAdresse] = useState(initial.adresse ?? "");
   const [depart, setDepart] = useState<Depart | null>(null);
@@ -130,6 +144,12 @@ export function CarteRecherche({
   // donc déjà à « en cours », plutôt que d'être basculé depuis l'effet.
   const [situation, setSituation] = useState(adresseUtilisable(initial.adresse));
   const [erreur, setErreur] = useState<string | null>(null);
+
+  // Autocomplétion depuis les adresses déjà connues du site.
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [listeOuverte, setListeOuverte] = useState(false);
+  const [indexActif, setIndexActif] = useState(-1);
+  const [saisieRetardee, setSaisieRetardee] = useState("");
 
   const [q, setQ] = useState(initial.q ?? "");
   const [qRetarde, setQRetarde] = useState(initial.q ?? "");
@@ -174,21 +194,92 @@ export function CarteRecherche({
 
   const idAdresse = useId();
   const idRayon = useId();
+  const idListe = useId();
 
   // --- Adresse ---------------------------------------------------------------
 
-  async function soumettreAdresse(evenement: React.FormEvent) {
-    evenement.preventDefault();
-    if (!adresseUtilisable(adresse)) return;
+  async function lancer(texte: string) {
+    if (!adresseUtilisable(texte)) return;
+    setListeOuverte(false);
     setSituation(true);
     setErreur(null);
-    const resultat = await resoudreAdresse(adresse);
+    const resultat = await resoudreAdresse(texte);
     setSituation(false);
     if (resultat.depart) {
       setChoisi(null);
       setDepart(resultat.depart);
     } else {
       setErreur(resultat.erreur ?? "Recherche impossible.");
+    }
+  }
+
+  async function soumettreAdresse(evenement: React.FormEvent) {
+    evenement.preventDefault();
+    await lancer(adresse);
+  }
+
+  function choisirSuggestion(suggestion: Suggestion) {
+    setAdresse(suggestion.libelle);
+    void lancer(suggestion.libelle);
+  }
+
+  // --- Autocomplétion --------------------------------------------------------
+
+  // On ne demande des suggestions qu'une fois la frappe posée. C'est notre
+  // propre base — aucun appel sortant — mais huit lettres ne valent pas huit
+  // requêtes.
+  useEffect(() => {
+    const minuteur = setTimeout(() => setSaisieRetardee(adresse), 150);
+    return () => clearTimeout(minuteur);
+  }, [adresse]);
+
+  useEffect(() => {
+    const texte = saisieRetardee.trim();
+    if (texte.length < 2) return;
+    const controleur = new AbortController();
+    fetch(`/api/geo/suggestions?q=${encodeURIComponent(texte)}`, {
+      signal: controleur.signal,
+    })
+      .then((reponse) => reponse.json())
+      .then((donnees) => {
+        setSuggestions(donnees.suggestions ?? []);
+        setIndexActif(-1);
+      })
+      .catch(() => {
+        // L'autocomplétion est un confort : son échec ne doit rien annoncer.
+      });
+    return () => controleur.abort();
+  }, [saisieRetardee]);
+
+  // Sous deux caractères, la liste précédente ne veut plus rien dire. On la
+  // masque au rendu plutôt que de vider l'état depuis un effet.
+  const suggestionsVisibles =
+    listeOuverte && saisieRetardee.trim().length >= 2 ? suggestions : [];
+
+  function toucheAdresse(evenement: React.KeyboardEvent<HTMLInputElement>) {
+    if (evenement.key === "Escape") {
+      setListeOuverte(false);
+      return;
+    }
+    if (evenement.key === "ArrowDown" || evenement.key === "ArrowUp") {
+      if (suggestions.length === 0) return;
+      evenement.preventDefault();
+      if (!listeOuverte) {
+        setListeOuverte(true);
+        setIndexActif(0);
+        return;
+      }
+      const pas = evenement.key === "ArrowDown" ? 1 : -1;
+      const total = suggestionsVisibles.length;
+      if (total === 0) return;
+      setIndexActif((precedent) => (precedent + pas + total) % total);
+      return;
+    }
+    if (evenement.key === "Enter" && indexActif >= 0 && suggestionsVisibles[indexActif]) {
+      // Entrée valide la suggestion surlignée, et NON le formulaire : sans ce
+      // garde-fou, la flèche puis Entrée cherchait le texte tapé à moitié.
+      evenement.preventDefault();
+      choisirSuggestion(suggestionsVisibles[indexActif]);
     }
   }
 
@@ -283,6 +374,11 @@ export function CarteRecherche({
   // --- Dessin ---------------------------------------------------------------
 
   const choisirDepuisCarte = useCallback((centreId: string) => {
+    // Sélectionner redessine les repères — c'est ainsi que le centre choisi
+    // change de couleur — et la reconstruction emporte l'infobulle que Leaflet
+    // venait d'ouvrir au clic. On note ce qu'il faudra rouvrir APRÈS le dessin,
+    // sans quoi la bulle apparaît et disparaît dans le même souffle.
+    apresDessin.current = { centreId, recentrer: false };
     setChoisi(centreId);
     // La carte a le focus, la liste est à côté : on amène la fiche du centre
     // sous les yeux plutôt que de laisser chercher.
@@ -292,6 +388,12 @@ export function CarteRecherche({
         ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     });
   }, []);
+
+  /** Depuis la liste : on sélectionne, et la carte va se poser sur le point. */
+  function choisirDepuisListe(centreId: string | null) {
+    if (centreId) apresDessin.current = { centreId, recentrer: true };
+    setChoisi(centreId);
+  }
 
   useEffect(() => {
     if (!depart) return;
@@ -303,7 +405,11 @@ export function CarteRecherche({
 
       if (!carte.current) {
         carte.current = L.map(conteneur.current, {
-          scrollWheelZoom: false, // le défilement de la page reste prioritaire
+          // La carte est le contenu principal de cette page, pas un encart au
+          // milieu d'un texte : la molette y zoome. Elle ne capture le
+          // défilement que sous le curseur, la page reste parcourable partout
+          // ailleurs.
+          scrollWheelZoom: true,
         });
         // Sans vue initiale, Leaflet n'attache pas ses couches : le disque
         // ajouté ensuite n'a pas de `_map` et `getBounds()` échoue.
@@ -340,9 +446,10 @@ export function CarteRecherche({
         .bindPopup(`<strong>Point de départ</strong><br>${depart.libelle}`)
         .addTo(c);
 
+      marqueurs.current.clear();
       for (const centre of resultats) {
         const actif = centre.id === choisi;
-        L.marker([centre.latitude, centre.longitude], {
+        const repere = L.marker([centre.latitude, centre.longitude], {
           icon: L.divIcon({
             html: marqueurCompte(
               actif ? COULEUR_CHOISI : COULEUR_CENTRE,
@@ -359,20 +466,38 @@ export function CarteRecherche({
           .on("click", () => choisirDepuisCarte(centre.id))
           .bindPopup(
             `<strong>${centre.organismeNom}</strong><br>` +
+              // L'adresse de rue quand on l'a : c'est elle qu'on recopie dans
+              // une convocation, pas le nom de la commune.
+              (centre.adresse ? `${centre.adresse}<br>` : "") +
               `${centre.codePostal ?? ""} ${centre.ville}<br>` +
               `<span style="opacity:.7">${centre.totalFormations} formation${
                 centre.totalFormations > 1 ? "s" : ""
               } · ${formatDistance(centre.distanceKm)}</span>`
           )
           .addTo(couche.current!);
+        marqueurs.current.set(centre.id, repere);
       }
 
       // Recadrage seulement si le disque a bougé : sinon on écraserait le
-      // déplacement que le visiteur vient de faire.
+      // déplacement que le visiteur vient de faire — molette comprise.
       const cadrage = `${depart.latitude},${depart.longitude},${rayonDessine}`;
       if (dernierCadrage.current !== cadrage) {
         dernierCadrage.current = cadrage;
         c.fitBounds(cercle.current.getBounds(), { padding: [24, 24] });
+      }
+
+      // Les repères sont en place : on peut enfin rouvrir la bulle demandée, et
+      // amener la carte dessus si la demande venait de la liste.
+      const suite = apresDessin.current;
+      apresDessin.current = null;
+      if (suite) {
+        const centre = resultats.find((r) => r.id === suite.centreId);
+        if (centre && suite.recentrer) {
+          // On garde le niveau de zoom courant s'il est déjà serré : quelqu'un
+          // qui a zoomé à la molette ne veut pas être ramené en arrière.
+          c.setView([centre.latitude, centre.longitude], Math.max(c.getZoom(), 12));
+        }
+        marqueurs.current.get(suite.centreId)?.openPopup();
       }
     })();
 
@@ -401,15 +526,69 @@ export function CarteRecherche({
         <label htmlFor={idAdresse} className="sr-only">
           Adresse de l&apos;entreprise
         </label>
-        <input
-          id={idAdresse}
-          type="text"
-          value={adresse}
-          onChange={(e) => setAdresse(e.target.value)}
-          placeholder="Adresse de l'entreprise — 12 rue de la Paix, 35000 Rennes"
-          autoComplete="street-address"
-          className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
-        />
+        <div className="relative min-w-0 flex-1">
+          <input
+            id={idAdresse}
+            type="text"
+            value={adresse}
+            onChange={(e) => {
+              setAdresse(e.target.value);
+              setListeOuverte(true);
+            }}
+            onKeyDown={toucheAdresse}
+            onBlur={() => setListeOuverte(false)}
+            placeholder="Adresse de l'entreprise — 12 rue de la Paix, 35000 Rennes"
+            // Le navigateur proposerait ses propres adresses par-dessus les
+            // nôtres, et les deux listes se recouvriraient.
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={suggestionsVisibles.length > 0}
+            aria-controls={idListe}
+            aria-autocomplete="list"
+            aria-activedescendant={
+              indexActif >= 0 ? `${idListe}-${indexActif}` : undefined
+            }
+            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+          />
+
+          {suggestionsVisibles.length > 0 && (
+            <ul
+              id={idListe}
+              role="listbox"
+              className="absolute z-1000 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-zinc-300 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              {suggestionsVisibles.map((suggestion, index) => (
+                <li key={`${suggestion.genre}-${suggestion.libelle}`}>
+                  <button
+                    type="button"
+                    id={`${idListe}-${index}`}
+                    role="option"
+                    aria-selected={index === indexActif}
+                    // Le clic doit être pris AVANT que le champ perde le focus,
+                    // sinon `onBlur` referme la liste et l'élément disparaît
+                    // sous le curseur avant d'avoir reçu le clic.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => choisirSuggestion(suggestion)}
+                    onMouseEnter={() => setIndexActif(index)}
+                    className={`block w-full px-3 py-2 text-left text-sm ${
+                      index === indexActif
+                        ? "bg-zinc-100 dark:bg-zinc-800"
+                        : ""
+                    }`}
+                  >
+                    <span className="block truncate font-medium">
+                      {suggestion.libelle}
+                    </span>
+                    <span className="block truncate text-xs text-zinc-500">
+                      {suggestion.detail}
+                      {suggestion.immediat && " · déjà situé"}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <button
           type="submit"
           disabled={situation}
@@ -611,7 +790,7 @@ export function CarteRecherche({
                     centre={centre}
                     ouvert={choisi === centre.id}
                     onBascule={() =>
-                      setChoisi(choisi === centre.id ? null : centre.id)
+                      choisirDepuisListe(choisi === centre.id ? null : centre.id)
                     }
                   />
                 ))
@@ -665,6 +844,14 @@ function FicheCentre({
             {formatDistance(centre.distanceKm)}
           </span>
         </div>
+        {/* L'adresse de rue si on l'a — sinon la commune seule, ce qui reste la
+            majorité des cas : les organismes ne publient pas leur adresse dans
+            leur calendrier, et c'est au back office de la compléter. */}
+        {centre.adresse && (
+          <div className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+            {centre.adresse}
+          </div>
+        )}
         <div className="mt-0.5 text-xs text-zinc-500">
           {centre.codePostal ? `${centre.codePostal} ` : ""}
           {centre.ville} · {centre.totalFormations} formation
