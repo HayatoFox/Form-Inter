@@ -235,6 +235,58 @@ body::before {
   stroke-linecap: round;
 }
 
+/* --- La carte ------------------------------------------------------------- */
+
+/* Leaflet apporte le comportement ; l'apparence reste celle du site. Sans ces
+   quelques règles, la carte arrive avec ses bulles blanches et son cadre bleu
+   d'origine, qui jurent en thème sombre et n'appartiennent à personne. */
+.carte-disque {
+  stroke: var(--vif);
+  fill: var(--vif);
+  fill-opacity: 0.06;
+}
+
+/* Toutes ces règles sont préfixées par `.carte-site`, la classe que porte notre
+   conteneur. Ce n'est pas de la coquetterie : la feuille de Leaflet est
+   importée depuis le composant, donc injectée APRÈS celle du site. À
+   spécificité égale, c'est elle qui gagne — la bulle et le fond restaient
+   blancs en thème sombre, au milieu d'une page noire. */
+.carte-site.leaflet-container {
+  background: var(--surface-creuse);
+  font: inherit;
+}
+
+.carte-site .leaflet-popup-content-wrapper,
+.carte-site .leaflet-popup-tip {
+  background: var(--surface);
+  color: var(--encre);
+  box-shadow: inset 0 0 0 1px var(--trait);
+}
+.carte-site .leaflet-popup-content-wrapper {
+  border-radius: var(--rayon);
+}
+.carte-site .leaflet-popup-content {
+  margin: 0.75rem 0.9rem;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.carte-site a.leaflet-popup-close-button {
+  color: var(--encre-3);
+}
+
+.carte-site .leaflet-bar a,
+.carte-site .leaflet-control-attribution {
+  background: var(--surface);
+  color: var(--encre-2);
+  border-color: var(--trait);
+}
+.carte-site .leaflet-bar a {
+  color: var(--encre);
+}
+.carte-site .leaflet-control-attribution a {
+  color: var(--vif);
+}
+
 /* --- Confort -------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {

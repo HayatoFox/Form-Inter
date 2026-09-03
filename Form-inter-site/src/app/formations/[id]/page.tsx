@@ -7,6 +7,7 @@ import { BACKEND } from "@/lib/backend/types";
 import { Reglure } from "@/components/Reglure";
 import { FlecheSortante } from "@/components/Marques";
 import { TableauSessions } from "@/components/TableauSessions";
+import { CarteCentres } from "@/components/CarteCentres";
 import { cadre, lien } from "@/lib/ui";
 
 export const dynamic = "force-dynamic";
@@ -178,6 +179,10 @@ export default async function FormationDetailPage({
           <TableauSessions sessions={[...upcoming, ...permanentes]} />
         )}
       </section>
+
+      {/* Après « quand », « où ». La carte arrive une fois qu'on a vu les
+          dates : c'est l'ordre des questions qu'on se pose vraiment. */}
+      <CarteCentres formationId={formation.id} intitule={formation.intitule} />
 
       {past.length > 0 && (
         <details className={`${cadre} group`}>

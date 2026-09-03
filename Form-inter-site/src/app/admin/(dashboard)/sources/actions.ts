@@ -12,6 +12,7 @@ import { creerConnecteur } from "@/lib/backend/connecteurs";
 import { synchroniser } from "@/lib/backend/sync";
 import { BACKEND, type ResultatSync } from "@/lib/backend/types";
 import { revaliderCatalogue } from "@/lib/revalidation";
+import { localiserCentres } from "@/lib/geo/centres";
 import type { EtatAction } from "./etat";
 
 function texte(formData: FormData, nom: string): string {
@@ -157,4 +158,46 @@ export async function purgerDonneesBackend(): Promise<EtatAction> {
       `${centres.count} centre(s), ${domaines.count} domaine(s), ` +
       `${organismes.count} organisme(s)`,
   };
+}
+
+/**
+ * Localise les centres qui ne le sont pas encore.
+ *
+ * Le géocodage tient une requête par seconde : un lot de cinquante prend
+ * cinquante secondes, et c'est volontairement borné. On relance autant de fois
+ * que nécessaire — l'état vit en base, chaque passage reprend où le précédent
+ * s'est arrêté.
+ */
+export async function localiser(
+  _precedent: EtatAction,
+  formData: FormData
+): Promise<EtatAction> {
+  await exigerAdmin();
+
+  const reprendre = coche(formData, "reprendreEchecs");
+
+  try {
+    const rendu = await localiserCentres({ lot: 50, reprendreEchecs: reprendre });
+    revalidatePath("/admin/sources");
+    revaliderCatalogue();
+
+    if (rendu.traites === 0) {
+      return { statut: "ok", message: "Tous les centres sont déjà localisés." };
+    }
+
+    return {
+      statut: "ok",
+      message: `${rendu.localises} centre(s) localisé(s) sur ${rendu.traites} traité(s).`,
+      detail:
+        (rendu.introuvables > 0
+          ? `${rendu.introuvables} adresse(s) non reconnue(s). `
+          : "") +
+        (rendu.erreurs > 0 ? `${rendu.erreurs} en erreur. ` : "") +
+        (rendu.restants > 0
+          ? `${rendu.restants} restant(s) : relancer pour continuer.`
+          : "Plus rien en attente."),
+    };
+  } catch (err) {
+    return { statut: "erreur", message: messageErreur(err) };
+  }
 }

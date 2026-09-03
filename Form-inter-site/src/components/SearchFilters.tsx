@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CurseurRayon } from "@/components/CurseurRayon";
 import { action, cadre, champ, legende } from "@/lib/ui";
 
 export type FiltresCourants = {
@@ -8,6 +9,8 @@ export type FiltresCourants = {
   ville?: string;
   dateFrom?: string;
   dateTo?: string;
+  /** Rayon autour de la ville, en kilomètres. 0 = la ville seule. */
+  rayon?: number;
   passees?: boolean;
   permanentes?: boolean;
 };
@@ -27,6 +30,8 @@ function sans(courants: FiltresCourants, cle: keyof FiltresCourants): string {
   if (reste.q) p.set("q", reste.q);
   if (reste.domaine) p.set("domaine", reste.domaine);
   if (reste.ville) p.set("ville", reste.ville);
+  // Un rayon sans ville ne veut rien dire : retirer la ville retire le rayon.
+  if (reste.ville && reste.rayon) p.set("rayon", String(reste.rayon));
   if (reste.organisme) p.set("organisme", reste.organisme);
   if (reste.dateFrom) p.set("dateFrom", reste.dateFrom);
   if (reste.dateTo) p.set("dateTo", reste.dateTo);
@@ -80,6 +85,12 @@ export function SearchFilters({
         {current.ville}
       </Terme>
     );
+  if (current.ville && current.rayon)
+    termes.push(
+      <Terme key="r" href={sans(current, "rayon")}>
+        <span className="donnee">{current.rayon} km</span> autour
+      </Terme>
+    );
   if (nomOrganisme)
     termes.push(
       <Terme key="o" href={sans(current, "organisme")}>
@@ -122,7 +133,7 @@ export function SearchFilters({
             affichage » : sans ce marqueur les cases reprendraient leur défaut. */}
         <input type="hidden" name="f" value="1" />
 
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-3">
           <label htmlFor="q" className={legende}>
             Mot-clé
           </label>
@@ -174,7 +185,13 @@ export function SearchFilters({
           </select>
         </div>
 
-        <div className="lg:col-span-3">
+        {/* Le rayon vit collé à la ville, parce qu'il ne veut rien dire sans
+            elle : « à moins de 30 km » de quoi ? */}
+        <div className="lg:col-span-2">
+          <CurseurRayon valeur={current.rayon ?? 0} />
+        </div>
+
+        <div className="lg:col-span-2">
           <label htmlFor="organisme" className={legende}>
             Organisme
           </label>

@@ -8,6 +8,8 @@ import { Nombre } from "@/components/Nombre";
 import { cleanupPastSessions } from "@/lib/session-cleanup";
 import { planifierSyncAuto } from "@/lib/backend/auto";
 import { debutDuJour, parseDateISO } from "@/lib/dates";
+import { centresAutour, positionVille } from "@/lib/geo/centres";
+import { normaliserRayon } from "@/lib/geo/rayon";
 import { lien } from "@/lib/ui";
 
 // Le catalogue bouge à chaque synchronisation, et la page nettoie les sessions
@@ -25,6 +27,7 @@ type SearchParams = {
   organisme?: string;
   dateFrom?: string;
   dateTo?: string;
+  rayon?: string;
   passees?: string;
   permanentes?: string;
   page?: string;
@@ -49,6 +52,9 @@ export default async function FormationsPage({
   const organismeId = params.organisme || undefined;
   const dateFrom = params.dateFrom || undefined;
   const dateTo = params.dateTo || undefined;
+  // Rayon autour de la ville. Sans ville, il ne désigne rien : on l'ignore
+  // plutôt que de deviner un centre.
+  const rayonActif = ville ? normaliserRayon(params.rayon) : 0;
   const soumis = params.f === "1";
   const passees = soumis && params.passees === "1";
   const permanentes = soumis ? params.permanentes === "1" : true;
@@ -74,7 +80,26 @@ export default async function FormationsPage({
   if (borneAu) contraintesDatees.push({ dateDebut: { lte: borneAu } });
 
   const conditionsSession: Prisma.SessionWhereInput[] = [];
-  if (ville) conditionsSession.push({ centre: { ville: { contains: ville } } });
+
+  // « Rennes » sans rayon ne sort que Rennes, et laisse de côté les centres de
+  // Cesson-Sévigné ou de Bruz qui sont à un quart d'heure. Avec un rayon, on
+  // résout la position de la ville — depuis un centre déjà localisé neuf fois
+  // sur dix, donc sans appel réseau — puis on liste les centres du disque.
+  // Le filtre porte ensuite sur des identifiants : la base ne fait aucune
+  // trigonométrie, et OpenStreetMap n'est pas sollicité.
+  if (ville && rayonActif > 0) {
+    const point = await positionVille(ville);
+    if (point) {
+      const centres = await centresAutour(point, rayonActif, { limite: 500 });
+      conditionsSession.push({ centreId: { in: centres.map((c) => c.id) } });
+    } else {
+      // Ville impossible à situer : on retombe sur l'égalité de nom plutôt que
+      // de rendre un catalogue vide sans explication.
+      conditionsSession.push({ centre: { ville: { contains: ville } } });
+    }
+  } else if (ville) {
+    conditionsSession.push({ centre: { ville: { contains: ville } } });
+  }
 
   if (contraintesDatees.length > 0) {
     const datees: Prisma.SessionWhereInput = {
@@ -155,6 +180,7 @@ export default async function FormationsPage({
     if (q) sp.set("q", q);
     if (domaineId) sp.set("domaine", domaineId);
     if (ville) sp.set("ville", ville);
+    if (ville && rayonActif) sp.set("rayon", String(rayonActif));
     if (organismeId) sp.set("organisme", organismeId);
     if (dateFrom) sp.set("dateFrom", dateFrom);
     if (dateTo) sp.set("dateTo", dateTo);
@@ -191,6 +217,7 @@ export default async function FormationsPage({
           q,
           domaine: domaineId,
           ville,
+          rayon: rayonActif,
           organisme: organismeId,
           dateFrom,
           dateTo,

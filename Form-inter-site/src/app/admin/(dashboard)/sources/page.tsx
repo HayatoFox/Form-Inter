@@ -5,6 +5,9 @@ import { derniersPassages } from "@/lib/backend/sync";
 import { BACKEND, MANUEL } from "@/lib/backend/types";
 import { Nombre } from "@/components/Nombre";
 import { LiaisonBackend } from "@/components/admin/LiaisonBackend";
+import { Localisation } from "@/components/admin/Localisation";
+import { etatLocalisation } from "@/lib/geo/centres";
+import { statistiquesCache } from "@/lib/geo/nominatim";
 
 const horodatage = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "short",
@@ -19,12 +22,15 @@ const STATUTS: Record<string, { libelle: string; classe: string }> = {
 };
 
 export default async function AdminSourcesPage() {
-  const [config, passages, backendCounts, manuelCounts] = await Promise.all([
-    lireConfigBackendPublique(),
-    derniersPassages(15),
-    prisma.session.count({ where: { source: BACKEND } }),
-    prisma.session.count({ where: { source: MANUEL } }),
-  ]);
+  const [config, passages, backendCounts, manuelCounts, etatGeo, cacheGeo] =
+    await Promise.all([
+      lireConfigBackendPublique(),
+      derniersPassages(15),
+      prisma.session.count({ where: { source: BACKEND } }),
+      prisma.session.count({ where: { source: MANUEL } }),
+      etatLocalisation(),
+      statistiquesCache(),
+    ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -41,13 +47,19 @@ export default async function AdminSourcesPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="cadre p-4">
-          <Nombre valeur={backendCounts} className="donnee block text-2xl text-encre" />
+          <Nombre
+            valeur={backendCounts}
+            className="donnee block text-2xl text-encre"
+          />
           <div className="text-sm text-encre-2">
             session(s) synchronisées depuis le backend
           </div>
         </div>
         <div className="cadre p-4">
-          <Nombre valeur={manuelCounts} className="donnee block text-2xl text-encre" />
+          <Nombre
+            valeur={manuelCounts}
+            className="donnee block text-2xl text-encre"
+          />
           <div className="text-sm text-encre-2">
             session(s) saisies ou importées à la main
           </div>
@@ -56,12 +68,14 @@ export default async function AdminSourcesPage() {
 
       <LiaisonBackend config={config} />
 
+      <Localisation etat={etatGeo} cache={cacheGeo} />
+
       <div className="cadre p-6">
         <h2 className="signature text-[17px] text-encre">Import Excel / CSV</h2>
         <p className="mt-1 text-sm text-encre-2">
           Pour les organismes qui transmettent un fichier plutôt qu&apos;un
-          planning en ligne. Les lignes importées portent la source
-          « manuelle » et survivent aux synchronisations.
+          planning en ligne. Les lignes importées portent la source « manuelle »
+          et survivent aux synchronisations.
         </p>
         <Link
           href="/admin/import"
@@ -100,10 +114,7 @@ export default async function AdminSourcesPage() {
                     classe: "text-encre-2",
                   };
                   return (
-                    <tr
-                      key={p.id}
-                      className="border-b border-trait align-top"
-                    >
+                    <tr key={p.id} className="border-b border-trait align-top">
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {horodatage.format(p.demarreLe)}
                       </td>
