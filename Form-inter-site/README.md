@@ -180,34 +180,66 @@ scrapé désignent la même entité.
   curl -H "Authorization: Bearer $CRON_SECRET" https://<site>/api/cron/sync
   ```
 
-## Direction artistique
+## Présentation
 
-Ancrée sur l'identité PROINSEC — bleu `#0072b1`, orange `#ff6900`, encre
-`#1c2733`, les mêmes que le site de veille interne — mais traitée en produit :
-respiration, hiérarchie typographique, élévation basse. Les arbitrages penchent
-vers l'outil de travail : c'est l'équipe qui balaie le catalogue toute la
-journée.
+Tailwind, palette `zinc`, thème sombre porté par les variantes `dark:` dans les
+composants. Une direction artistique plus marquée a été tentée puis **annulée à
+la demande** ; ce README a décrit un temps des jetons sémantiques et un module
+`src/lib/ui.ts` qui n'existent plus. Rien de tel aujourd'hui : ce qu'on lit dans
+les composants est ce qui s'affiche.
 
-Trois règles tiennent l'ensemble :
+## OpenStreetMap
 
-**Aucun composant n'écrit `dark:`.** Les jetons sémantiques (`surface`, `texte`,
-`bordure`, `marque`, `action`…) basculent dans `globals.css` et sont exposés en
-utilitaires Tailwind par `@theme inline`. Un seul endroit à relire pour vérifier
-le thème sombre, et aucune paire de classes à maintenir en double. Les recettes
-partagées (cartes, boutons, champs) vivent dans `src/lib/ui.ts`.
+Le site géocode des adresses et affiche des cartes. Deux règles gouvernent tout
+le dispositif, parce que la politique d'usage de Nominatim est stricte et qu'un
+bannissement se mérite vite.
 
-**Le domaine est une teinte, pas une couleur.** `src/lib/domaines.ts` associe à
-chacun des quatorze domaines une teinte oklch ; `.pastille` fixe la clarté et le
-chroma. Toutes les pastilles ont donc le même poids visuel et le même contraste
-dans les deux thèmes — ce qu'une liste de codes hexadécimaux choisis un par un
-ne sait pas garantir. Un domaine inconnu reçoit une teinte dérivée de son nom,
-stable d'une page à l'autre. C'est la signature du site : la même pastille dans
-la carte, le filtre, la fiche et la modale, plus le liseré du même ton à gauche
-des cartes.
+**Un centre est géocodé une fois, puis conservé.** Son adresse ne bouge
+pratiquement jamais. Une fois `Centre.latitude/longitude` renseignés, filtrer par
+distance ou dessiner une carte ne coûte plus une seule requête sortante. Le
+remplissage se déclenche depuis Admin › Sources de données, par lots bornés
+(`src/lib/geo/centres.ts`).
 
-**L'orange est rare et signifiant.** Il ne sort que lorsque la disponibilité se
-tend (« dernières places », « complet ») ; partout ailleurs le gris suffit. Un
-accent qui sert partout ne signale plus rien.
+**Toute interrogation passe par le cache.** `src/lib/geo/nominatim.ts` est le
+seul point de sortie : il lit d'abord la table `Geocodage`, ne sort qu'en cas
+d'absence, cadence à une requête toutes les 1,2 s, plafonne à 400 par heure,
+identifie l'application par un User-Agent configurable et ne réessaie jamais
+après un 429 ou un 403. Les échecs sont mémorisés eux aussi — réinterroger sans
+fin une adresse inconnue est exactement la boucle qui fait bannir.
+
+Trois entrées consomment ce dispositif :
+
+| Écran | Ce qu'il coûte dehors |
+|---|---|
+| Filtre « autour de » sur `/formations` | 0 (la ville est résolue depuis un centre déjà situé) |
+| Carte des centres sur une fiche formation | 1 appel maximum, pour l'adresse du client |
+| Page `/carte` | 1 appel maximum, pour l'adresse de l'entreprise |
+
+### La page `/carte`
+
+L'entrée par le lieu, en regard de `/formations` qui est l'entrée par la liste.
+On pose l'adresse de l'entreprise, on règle mot-clé, domaine, organisme, dates
+et rayon, et **les repères suivent en direct** : chaque repère porte le nombre
+de formations qui y correspondent, la colonne de gauche les détaille, et cliquer
+l'un ou l'autre relie les deux.
+
+Ce direct ne coûte rien dehors — l'adresse part une fois, tout le reste
+n'interroge que la base — mais il ne doit pas non plus partir en rafale contre
+notre propre serveur. Trois précautions dans `src/components/CarteRecherche.tsx` :
+le mot-clé et le rayon sont retardés de 300 ms, toute requête encore en vol est
+annulée quand la suivante part, et la carte ne se recadre que si le disque a
+changé — sinon elle annulerait le déplacement qu'on vient de faire à la main.
+
+Les filtres eux-mêmes ne sont définis qu'à un seul endroit,
+`src/lib/recherche.ts`, partagé par les deux pages : sans cela « les formations
+qui correspondent » n'aurait pas la même définition de l'une à l'autre, et il
+suffirait d'ajouter un critère d'un côté pour que les deux ne comptent plus
+pareil.
+
+Deux limites assumées : les distances sont **à vol d'oiseau** (le serveur public
+d'OSRM interdit l'usage en production), et la recherche par mot-clé est
+**sensible aux accents** — « electrique » ne trouve pas « électrique », faute de
+`unaccent` en SQLite.
 
 ## Dates
 

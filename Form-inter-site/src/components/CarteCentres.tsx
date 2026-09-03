@@ -5,6 +5,13 @@ import "leaflet/dist/leaflet.css";
 import type { Map as CarteLeaflet, LayerGroup, Circle, Marker } from "leaflet";
 import { formatDistance } from "@/lib/geo/distance";
 import { RAYON_MAX, RAYON_PAS } from "@/lib/geo/rayon";
+import {
+  ATTRIBUTION,
+  COULEUR_CENTRE,
+  COULEUR_DEPART,
+  TUILES,
+  marqueur,
+} from "@/lib/carte";
 
 /**
  * « Où se former près de mon client ? »
@@ -28,13 +35,6 @@ import { RAYON_MAX, RAYON_PAS } from "@/lib/geo/rayon";
  * serait disproportionné.
  */
 
-const TUILES =
-  process.env.NEXT_PUBLIC_TUILES_URL ??
-  "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const ATTRIBUTION =
-  process.env.NEXT_PUBLIC_TUILES_ATTRIBUTION ??
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-
 export type CentreCarte = {
   id: string;
   nom: string;
@@ -49,23 +49,6 @@ export type CentreCarte = {
 };
 
 type Depart = { latitude: number; longitude: number; libelle: string };
-
-/**
- * Le repère, dessiné en SVG plutôt que chargé en image : les icônes de Leaflet
- * arrivent par des URL relatives à sa feuille de style, que le bundler
- * réécrit — elles finissent en 404 et les repères disparaissent. Le point de
- * départ est en bleu, les centres en noir.
- */
-function marqueur(couleur: string, taille = 26): string {
-  const l = taille * 0.62;
-  const c = l * 0.22;
-  return `
-    <svg width="${l}" height="${taille}" viewBox="0 0 ${l} ${taille}" aria-hidden="true"
-         style="display:block;filter:drop-shadow(0 1px 1px rgba(0,0,0,.35))">
-      <path d="M${l / 2} ${taille}L0 ${l * 0.9}L0 ${c}L${c} 0L${l - c} 0L${l} ${c}L${l} ${l * 0.9}Z"
-            style="fill:${couleur}" />
-    </svg>`;
-}
 
 export function CarteCentres({
   formationId,
@@ -129,15 +112,15 @@ export function CarteCentres({
 
       cercle.current = L.circle([point.latitude, point.longitude], {
         radius: km * 1000,
-        color: "#2563eb",
+        color: COULEUR_DEPART,
         weight: 1,
-        fillColor: "#2563eb",
+        fillColor: COULEUR_DEPART,
         fillOpacity: 0.06,
       }).addTo(c);
 
       depuisMarqueur.current = L.marker([point.latitude, point.longitude], {
         icon: L.divIcon({
-          html: marqueur("#2563eb", 30),
+          html: marqueur(COULEUR_DEPART, 30),
           className: "",
           iconSize: [19, 30],
           iconAnchor: [9, 30],
@@ -151,7 +134,7 @@ export function CarteCentres({
       for (const centre of liste) {
         L.marker([centre.latitude, centre.longitude], {
           icon: L.divIcon({
-            html: marqueur("#18181b"),
+            html: marqueur(COULEUR_CENTRE),
             className: "",
             iconSize: [16, 26],
             iconAnchor: [8, 26],

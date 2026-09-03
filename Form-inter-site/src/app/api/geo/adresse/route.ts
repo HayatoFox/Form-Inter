@@ -60,6 +60,16 @@ export async function GET(request: NextRequest) {
     longitude: resultat.coordonnees.longitude,
   };
 
+  // La page `/carte` n'a besoin que du point : elle interroge ensuite sa propre
+  // route, qui regroupe les résultats par centre. Lui renvoyer une liste de
+  // centres qu'elle jetterait serait une requête pour rien.
+  if (params.get("centres") === "0") {
+    return NextResponse.json({
+      depart: { ...point, libelle: resultat.coordonnees.libelle },
+      depuisCache: resultat.depuisCache,
+    });
+  }
+
   const centres = await centresAutour(point, rayon, {
     formationId,
     limite: CENTRES_MAX,

@@ -11,6 +11,10 @@ export function NavBar() {
           <Link href="/formations" className="hover:text-zinc-500">
             Formations
           </Link>
+          {/* La même recherche, prise par le lieu plutôt que par la liste. */}
+          <Link href="/carte" className="hover:text-zinc-500">
+            Carte
+          </Link>
           <Link href="/organismes" className="hover:text-zinc-500">
             Organismes
           </Link>
