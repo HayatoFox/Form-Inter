@@ -119,14 +119,64 @@ const CATALOGUE: Record<string, string[]> = {
   ],
 };
 
-const VILLES = [
-  "Bordeaux", "Nantes", "Rennes", "Le Mans", "Angers", "Tours", "Angoulême",
-  "La Rochelle", "Poitiers", "Limoges", "Niort", "Saint-Nazaire", "Vannes",
-  "Brest", "Rouen", "Caen", "Le Havre", "Lille", "Amiens", "Reims", "Metz",
-  "Nancy", "Strasbourg", "Dijon", "Lyon", "Grenoble", "Clermont-Ferrand",
-  "Marseille", "Aix-en-Provence", "Vitrolles", "Nice", "Toulon", "Montpellier",
-  "Nîmes", "Toulouse", "Pau", "Bayonne", "Paris", "Créteil", "Versailles",
-];
+/**
+ * Les villes du jeu de démonstration, AVEC LEURS COORDONNÉES.
+ *
+ * Elles sont écrites en dur, et c'est délibéré : le filtre par distance et la
+ * carte ne servent à rien tant que les centres ne sont pas situés. Sans ces
+ * valeurs, une installation neuve devrait géocoder quarante adresses à une
+ * requête par seconde avant de pouvoir essayer quoi que ce soit. Là, le jeu de
+ * démonstration est utilisable immédiatement, et il ne coûte pas un seul appel
+ * à OpenStreetMap.
+ *
+ * Les coordonnées viennent de Nominatim, relevées une fois. Vitrolles a été
+ * retirée de la liste : la recherche renvoyait le Vitrolles des Hautes-Alpes
+ * et non celui des Bouches-du-Rhône, et mieux vaut une ville de moins qu'une
+ * coordonnée fausse dans un jeu qui sert justement à vérifier des distances.
+ */
+const VILLES: Record<string, [number, number]> = {
+  "Bordeaux": [44.84123, -0.58004],
+  "Nantes": [47.21864, -1.55414],
+  "Rennes": [48.11134, -1.68002],
+  "Le Mans": [48.00738, 0.19678],
+  "Angers": [47.47399, -0.55156],
+  "Tours": [47.39005, 0.68893],
+  "Angoulême": [45.64845, 0.15619],
+  "La Rochelle": [46.15973, -1.1516],
+  "Poitiers": [46.58026, 0.3402],
+  "Limoges": [45.83542, 1.26448],
+  "Niort": [46.32392, -0.46461],
+  "Saint-Nazaire": [47.27335, -2.21389],
+  "Vannes": [47.65868, -2.75991],
+  "Brest": [48.39053, -4.48601],
+  "Rouen": [49.44046, 1.09397],
+  "Caen": [49.18134, -0.36356],
+  "Le Havre": [49.4939, 0.10797],
+  "Lille": [50.63657, 3.06353],
+  "Amiens": [49.89417, 2.2957],
+  "Reims": [49.25779, 4.03193],
+  "Metz": [49.1197, 6.17636],
+  "Nancy": [48.69372, 6.18341],
+  "Strasbourg": [48.58461, 7.75071],
+  "Dijon": [47.32158, 5.04147],
+  "Lyon": [45.75781, 4.83201],
+  "Grenoble": [45.18756, 5.73578],
+  "Clermont-Ferrand": [45.77746, 3.08194],
+  "Marseille": [43.2964, 5.37779],
+  "Aix-en-Provence": [43.52984, 5.44747],
+  "Nice": [43.70094, 7.26839],
+  "Toulon": [43.12573, 5.93049],
+  "Montpellier": [43.61124, 3.87673],
+  "Nîmes": [43.83742, 4.36007],
+  "Toulouse": [43.60446, 1.44424],
+  "Pau": [43.29575, -0.36857],
+  "Bayonne": [43.49451, -1.47367],
+  "Paris": [48.85889, 2.32004],
+  "Créteil": [48.77715, 2.45307],
+  "Versailles": [48.80354, 2.12669],
+};
+
+const NOMS_VILLES = Object.keys(VILLES);
 
 const DISPONIBILITES = [
   "Places disponibles", "Places disponibles", "Places disponibles",
@@ -178,13 +228,28 @@ async function main() {
     // Chaque organisme couvre une poignée de villes, pas les quarante.
     const villes: string[] = [];
     while (villes.length < 4 + Math.floor(alea() * 9)) {
-      const v = parmi(VILLES);
+      const v = parmi(NOMS_VILLES);
       if (!villes.includes(v)) villes.push(v);
     }
     const centres = new Map<string, string>();
     for (const ville of villes) {
+      const [latitude, longitude] = VILLES[ville];
       const c = await prisma.centre.create({
-        data: { nom: ville, ville, organismeId: organisme.id, source: "BACKEND" },
+        // Les coordonnées sont posées d'emblée et l'état marqué « ok » : le
+        // filtre par distance et la carte marchent dès la première seconde,
+        // sans passer par le géocodage.
+        data: {
+          nom: ville,
+          ville,
+          organismeId: organisme.id,
+          source: "BACKEND",
+          latitude,
+          longitude,
+          geoStatut: "ok",
+          geoRequete: `${ville}, france`,
+          geoLibelle: `${ville}, France`,
+          geoLe: new Date(),
+        },
         select: { id: true },
       });
       centres.set(ville, c.id);
@@ -296,7 +361,12 @@ async function main() {
   }
 
   // Compte admin, pour pouvoir ouvrir /admin dans la foulée.
-  const email = process.env.ADMIN_EMAIL ?? "admin@local";
+  // L'adresse par défaut doit être une adresse VALIDE : le formulaire de
+  // connexion la valide avec `z.string().email()`, qui refuse « admin@local »
+  // faute de point. Le compte existait, le mot de passe était bon, et la
+  // connexion répondait « Email ou mot de passe invalide » — un 400 de
+  // validation qu'on lisait comme un échec d'authentification.
+  const email = process.env.ADMIN_EMAIL ?? "admin@proinsec.local";
   const motDePasse = process.env.ADMIN_PASSWORD_SEED ?? "demo";
   await prisma.adminUser.upsert({
     where: { email },

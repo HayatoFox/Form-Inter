@@ -2,7 +2,6 @@
 
 import { startTransition, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { action, cadre, champ, legende } from "@/lib/ui";
 
 export function LoginForm() {
   const router = useRouter();
@@ -34,11 +33,10 @@ export function LoginForm() {
     const from = searchParams.get("from");
     const cible = from && from.startsWith("/admin") ? from : "/admin";
 
-    // On vide le cache de route AVANT de naviguer, et on attend que ce soit
-    // fait. Sans cela, `push` réutilise la réponse mise en cache quand on
-    // n'était pas connecté — c'est-à-dire la redirection vers cette page — et
-    // le bouton « Se connecter » renvoie à l'écran de connexion alors que le
-    // cookie est bien posé.
+    // On vide le cache de route AVANT de naviguer. Sans cela, `push` réutilise
+    // la réponse mise en cache quand on n'était pas connecté — c'est-à-dire la
+    // redirection vers cette page — et le bouton « Se connecter » renvoie à
+    // l'écran de connexion alors que le cookie est bien posé.
     router.refresh();
     startTransition(() => router.push(cible));
   }
@@ -46,10 +44,10 @@ export function LoginForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className={`${cadre} flex flex-col gap-4 p-6`}
+      className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
     >
       <div>
-        <label htmlFor="email" className={legende}>
+        <label htmlFor="email" className="block text-xs font-medium text-zinc-500">
           Email
         </label>
         <input
@@ -58,11 +56,11 @@ export function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className={`${champ} mt-1.5`}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
         />
       </div>
       <div>
-        <label htmlFor="password" className={legende}>
+        <label htmlFor="password" className="block text-xs font-medium text-zinc-500">
           Mot de passe
         </label>
         <input
@@ -71,21 +69,14 @@ export function LoginForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className={`${champ} mt-1.5`}
+          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
         />
       </div>
-      {error && (
-        <p
-          role="alert"
-          className="rounded-[var(--rayon)] bg-erreur-doux px-4 py-2.5 text-sm text-erreur shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--erreur)_25%,transparent)]"
-        >
-          {error}
-        </p>
-      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={loading}
-        className={action}
+        className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
       >
         {loading ? "Connexion…" : "Se connecter"}
       </button>

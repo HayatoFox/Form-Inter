@@ -10,26 +10,26 @@ export default async function AdminDomainesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="signature text-[26px] leading-tight text-encre">Domaines</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Domaines</h1>
 
       <form
         action={createDomaine}
-        className="flex flex-wrap items-end gap-3 cadre p-4"
+        className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
       >
         <div className="flex-1 min-w-[200px]">
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Nouveau domaine
           </label>
           <input
             name="nom"
             required
             placeholder="ex: Habilitation électrique"
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <button
           type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] bg-action px-4 py-2 text-sm font-medium text-action-texte transition-opacity hover:opacity-85 disabled:pointer-events-none disabled:opacity-40"
+          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
         >
           Ajouter
         </button>
@@ -49,22 +49,22 @@ export default async function AdminDomainesPage() {
           return (
             <li
               key={d.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--rayon)] border border-trait bg-surface px-4 py-2"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900"
             >
               <form action={renameAction} className="flex items-center gap-2">
                 <input
                   name="nom"
                   defaultValue={d.nom}
-                  className="rounded-[var(--rayon)] bg-surface px-2.5 py-1.5 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+                  className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-950"
                 />
                 <button
                   type="submit"
-                  className="text-xs text-encre-2 hover:underline"
+                  className="text-xs text-zinc-500 hover:underline"
                 >
                   Renommer
                 </button>
               </form>
-              <div className="flex items-center gap-3 text-sm text-encre-2">
+              <div className="flex items-center gap-3 text-sm text-zinc-500">
                 <span>
                   {d._count.formations} formation
                   {d._count.formations > 1 ? "s" : ""}
@@ -80,7 +80,7 @@ export default async function AdminDomainesPage() {
                 <form action={deleteAction}>
                   <button
                     type="submit"
-                    className="text-xs text-erreur hover:underline"
+                    className="text-xs text-red-600 hover:underline"
                   >
                     Supprimer
                   </button>
@@ -90,7 +90,7 @@ export default async function AdminDomainesPage() {
           );
         })}
         {domaines.length === 0 && (
-          <li className="text-sm text-encre-2">Aucun domaine pour le moment.</li>
+          <li className="text-sm text-zinc-500">Aucun domaine pour le moment.</li>
         )}
       </ul>
     </div>

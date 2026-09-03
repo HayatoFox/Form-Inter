@@ -10,55 +10,55 @@ export default async function AdminOrganismesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="signature text-[26px] leading-tight text-encre">Organismes</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Organismes</h1>
 
       <form
         action={createOrganisme}
-        className="grid grid-cols-1 gap-4 cadre p-4 sm:grid-cols-2"
+        className="grid grid-cols-1 gap-4 rounded-lg border border-zinc-200 bg-white p-4 sm:grid-cols-2 dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <h2 className="sm:col-span-2 text-[13px] text-encre-3">
+        <h2 className="sm:col-span-2 text-sm font-semibold">
           Ajouter un organisme
         </h2>
         <div>
-          <label className="block text-[13px] text-encre-3">Nom</label>
+          <label className="block text-xs font-medium text-zinc-500">Nom</label>
           <input
             name="nom"
             required
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Site web
           </label>
           <input
             name="siteWeb"
             type="url"
             placeholder="https://…"
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Téléphone
           </label>
           <input
             name="telephone"
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">Email</label>
+          <label className="block text-xs font-medium text-zinc-500">Email</label>
           <input
             name="email"
             type="email"
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div className="sm:col-span-2">
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] bg-action px-4 py-2 text-sm font-medium text-action-texte transition-opacity hover:opacity-85 disabled:pointer-events-none disabled:opacity-40"
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             Ajouter
           </button>
@@ -70,10 +70,10 @@ export default async function AdminOrganismesPage() {
           <Link
             key={o.id}
             href={`/admin/organismes/${o.id}`}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--rayon)] border border-trait bg-surface px-4 py-3 text-sm hover:bg-surface-creuse"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
           >
             <span className="font-medium">{o.nom}</span>
-            <span className="text-encre-2">
+            <span className="text-zinc-500">
               {o._count.centres} centre{o._count.centres > 1 ? "s" : ""} ·{" "}
               {o._count.formations} formation{o._count.formations > 1 ? "s" : ""}
             </span>

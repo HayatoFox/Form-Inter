@@ -6,8 +6,6 @@ import { libelleMode, lireConfigBackend } from "@/lib/backend/config";
 import { dernierPassageReussi, passageEnRetard } from "@/lib/backend/sync";
 import { BACKEND, MANUEL } from "@/lib/backend/types";
 import { DangerZone } from "@/components/admin/DangerZone";
-import { Nombre } from "@/components/Nombre";
-import { cadre } from "@/lib/ui";
 
 const horodatage = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "short",
@@ -54,29 +52,30 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="signature text-[26px] leading-tight text-encre">Tableau de bord</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Tableau de bord</h1>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((s) => (
           <Link
             key={s.label}
             href={s.href}
-            className={`${cadre} p-4 transition-[box-shadow,background-color] duration-150 hover:bg-surface-creuse hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]`}
+            className="rounded-lg border border-zinc-200 bg-white p-4 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
           >
-            <Nombre valeur={s.value} className="donnee block text-2xl text-encre" />
-            <div className="mt-0.5 text-sm text-encre-3">{s.label}</div>
+            <div className="text-2xl font-semibold">{s.value}</div>
+            <div className="text-sm text-zinc-500">{s.label}</div>
           </Link>
         ))}
       </div>
 
       <Link
         href="/admin/sources"
-        /* Pas de panneau teinté quand la liaison décroche : c'est la ligne
-           d'alerte, en bas, qui porte la couleur. Un aplat orange derrière un
-           bloc entier fait crier tout ce qu'il contient. */
-        className={`${cadre} block p-6 transition-[box-shadow,background-color] duration-150 hover:bg-surface-creuse hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]`}
+        className={`block rounded-lg border p-6 hover:shadow-md ${
+          enRetard
+            ? "border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+            : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+        }`}
       >
-        <h2 className="signature text-[17px] text-encre">Liaison backend</h2>
-        <p className="mt-1 text-sm text-encre-2">
+        <h2 className="text-base font-semibold">Liaison backend</h2>
+        <p className="mt-1 text-sm text-zinc-500">
           {libelleMode(config.mode)}
           {liaisonActive && (
             <>
@@ -87,28 +86,25 @@ export default async function AdminDashboardPage() {
             </>
           )}
         </p>
-        <p className="mt-2 text-sm text-encre-2">
-          <Nombre valeur={sessionsBackend} className="donnee text-encre" />{" "}
-          du backend, <Nombre valeur={sessionsManuelles} className="donnee text-encre" />{" "}
-          saisie(s) à la main
+        <p className="mt-2 text-sm text-zinc-500">
+          {sessionsBackend} session(s) du backend · {sessionsManuelles}{" "}
+          session(s) manuelle(s)
         </p>
         {enRetard && (
-          <p className="mt-2 text-sm font-medium text-alerte">
-            La dernière synchronisation réussie est ancienne : vérifiez la
+          <p className="mt-2 text-sm font-medium text-amber-700 dark:text-amber-400">
+            La dernière synchronisation réussie est ancienne — vérifiez la
             liaison.
           </p>
         )}
       </Link>
 
-      {/* Une note de bas de page, pas un encadré pointillé : un filet en
-          tirets autour d'un paragraphe est une structure décorative. */}
-      <p className="max-w-3xl text-sm leading-relaxed text-encre-3">
+      <div className="rounded-lg border border-dashed border-zinc-300 p-6 text-sm text-zinc-500 dark:border-zinc-700">
         Le catalogue se remplit par deux chemins : la liaison avec le backend de
         veille et l&apos;import de fichiers Excel/CSV. Les sessions manuelles
         terminées sont supprimées à chaque visite de cette page ou de la
         recherche publique ; celles du backend suivent ce que publie
         l&apos;organisme.
-      </p>
+      </div>
 
       <DangerZone counts={{ organismes, formations, sessions }} />
     </div>

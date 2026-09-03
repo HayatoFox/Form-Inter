@@ -19,10 +19,26 @@ jamais une ligne rapatriée du backend.
 ```bash
 npm install                 # engendre aussi le client Prisma (postinstall)
 cp .env.example .env        # puis renseigner les valeurs
-npm run db:seed             # applique les migrations, puis les organismes
-                            # de départ et le compte admin
-npm run dev                 # http://localhost:3000
+npm run dev                 # migrations, amorçage, puis http://localhost:3000
 ```
+
+`npm run dev` fait trois choses avant de démarrer le serveur : il applique les
+migrations, il amorce la base si elle est vide, et il **affiche les
+identifiants du back office** dans le terminal :
+
+```
+┌─────────────────────────────────────┐
+│ Jeu de démonstration en place.      │
+│                                     │
+│ Back office : /admin                │
+│   identifiant  admin@proinsec.local │
+│   mot de passe demo                 │
+└─────────────────────────────────────┘
+```
+
+L'amorçage est idempotent et ne touche jamais à des données existantes : sur
+une base déjà remplie, il se contente de rappeler où on en est. `ADMIN_EMAIL`
+et `ADMIN_PASSWORD_SEED` dans `.env` remplacent les valeurs par défaut.
 
 Le client Prisma est engendré dans `src/generated/`, **hors dépôt** : un clone
 neuf ne l'a pas. Le script `postinstall` s'en charge ; en cas de doute,
@@ -30,10 +46,16 @@ neuf ne l'a pas. Le script `postinstall` s'en charge ; en cas de doute,
 
 ## Tester en local, sans backend ni Docker
 
-`npm run db:demo` remplit la base avec un catalogue réaliste — organismes,
-domaines, villes et intitulés du métier — sans lancer le backend ni attendre
-une collecte de quinze minutes. C'est le chemin le plus court pour juger
-l'interface.
+`npm run dev` pose ce jeu tout seul sur une base vide. `npm run db:demo` le
+repose à la demande : un catalogue réaliste — organismes, domaines, villes et
+intitulés du métier — sans lancer le backend ni attendre une collecte de
+quinze minutes.
+
+**Les centres du jeu de démonstration arrivent avec leurs coordonnées.** Le
+filtre par distance et la carte marchent donc dès la première seconde, sans
+géocoder quoi que ce soit et sans un seul appel à OpenStreetMap. Les
+coordonnées des trente-neuf villes sont écrites en dur dans le seed, relevées
+une fois.
 
 ```bash
 cd Form-inter-site

@@ -3,14 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { SearchFilters } from "@/components/SearchFilters";
 import { FormationCard } from "@/components/FormationCard";
-import { Pagination } from "@/components/ui/Pagination";
-import { Nombre } from "@/components/Nombre";
 import { cleanupPastSessions } from "@/lib/session-cleanup";
 import { planifierSyncAuto } from "@/lib/backend/auto";
 import { debutDuJour, parseDateISO } from "@/lib/dates";
 import { centresAutour, positionVille } from "@/lib/geo/centres";
 import { normaliserRayon } from "@/lib/geo/rayon";
-import { lien } from "@/lib/ui";
 
 // Le catalogue bouge à chaque synchronisation, et la page nettoie les sessions
 // manuelles périmées à l'affichage : rien à préparer au build — où il n'y a de
@@ -19,6 +16,7 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 20;
 
+const nombre = new Intl.NumberFormat("fr-FR");
 
 type SearchParams = {
   q?: string;
@@ -84,8 +82,8 @@ export default async function FormationsPage({
   // « Rennes » sans rayon ne sort que Rennes, et laisse de côté les centres de
   // Cesson-Sévigné ou de Bruz qui sont à un quart d'heure. Avec un rayon, on
   // résout la position de la ville — depuis un centre déjà localisé neuf fois
-  // sur dix, donc sans appel réseau — puis on liste les centres du disque.
-  // Le filtre porte ensuite sur des identifiants : la base ne fait aucune
+  // sur dix, donc sans appel réseau — puis on liste les centres du disque. Le
+  // filtre porte ensuite sur des identifiants : la base ne fait aucune
   // trigonométrie, et OpenStreetMap n'est pas sollicité.
   if (ville && rayonActif > 0) {
     const point = await positionVille(ville);
@@ -134,7 +132,6 @@ export default async function FormationsPage({
     organismes,
     villesRaw,
     total,
-    totalCatalogue,
     totalSessions,
     formations,
   ] = await Promise.all([
@@ -146,9 +143,6 @@ export default async function FormationsPage({
       orderBy: { ville: "asc" },
     }),
     prisma.formation.count({ where }),
-    // Distingue « aucun résultat pour cette recherche » de « base encore
-    // vide » : les deux méritent des mots différents.
-    prisma.formation.count(),
     // Une formation regroupe toutes ses dates et tous ses lieux : le catalogue
     // compte donc bien moins de formations que de sessions. Afficher les deux
     // évite de croire à des données manquantes en comparant avec le site de
@@ -172,7 +166,6 @@ export default async function FormationsPage({
   ]);
 
   const villes = villesRaw.map((v) => v.ville);
-  const catalogueVide = totalCatalogue === 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   function pageHref(p: number) {
@@ -192,20 +185,15 @@ export default async function FormationsPage({
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <h1 className="signature text-[26px] leading-tight text-encre">
-          Calendrier
-        </h1>
-        {/* Une formation regroupe toutes ses dates et tous ses lieux : le
-            catalogue compte donc bien moins de formations que de sessions.
-            Afficher les deux évite de croire à des données manquantes en
-            comparant avec le site de veille, qui compte des sessions. */}
-        <p className="text-sm text-encre-3">
-          <Nombre valeur={total} className="donnee text-encre" />{" "}
-          formation{total > 1 ? "s" : ""}, {" "}
-          <Nombre valeur={totalSessions} className="donnee text-encre" />{" "}
-          session{totalSessions > 1 ? "s" : ""}
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Formations</h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          {nombre.format(total)} formation{total > 1 ? "s" : ""} trouvée
+          {total > 1 ? "s" : ""}
+          {" · "}
+          {nombre.format(totalSessions)} session
+          {totalSessions > 1 ? "s" : ""} au total
         </p>
       </div>
 
@@ -226,42 +214,12 @@ export default async function FormationsPage({
         }}
       />
 
-      {/* « Rien ne correspond » suppose une recherche. Sur un catalogue encore
-          vide, ce message envoie chercher un filtre qui n'existe pas : il faut
-          dire que la base est vide, et où on la remplit. */}
       {formations.length === 0 ? (
-        <div className="cadre px-6 py-16 text-center">
-          {catalogueVide ? (
-            <>
-              <p className="signature text-[20px] text-encre">
-                Le catalogue est vide.
-              </p>
-              <p className="mx-auto mt-2 max-w-md text-sm text-encre-2">
-                Aucune formation n&apos;a encore été relevée. Elles arrivent par
-                la{" "}
-                <Link href="/admin/sources" className={lien}>
-                  liaison avec le backend
-                </Link>{" "}
-                ou par un import de fichier.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="signature text-[20px] text-encre">
-                Rien ne correspond à ces critères.
-              </p>
-              <p className="mx-auto mt-2 max-w-md text-sm text-encre-2">
-                Élargissez la période, retirez un filtre, ou{" "}
-                <Link href="/formations" className={lien}>
-                  repartez du calendrier complet
-                </Link>
-                .
-              </p>
-            </>
-          )}
-        </div>
+        <p className="rounded-lg border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
+          Aucune formation ne correspond à ces critères.
+        </p>
       ) : (
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {formations.map((f) => (
             <FormationCard
               key={f.id}
@@ -272,7 +230,23 @@ export default async function FormationsPage({
         </div>
       )}
 
-      <Pagination page={page} totalPages={totalPages} href={pageHref} />
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 text-sm">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <Link
+              key={p}
+              href={pageHref(p)}
+              className={`rounded-md px-3 py-1.5 ${
+                p === page
+                  ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
+                  : "border border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              }`}
+            >
+              {p}
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

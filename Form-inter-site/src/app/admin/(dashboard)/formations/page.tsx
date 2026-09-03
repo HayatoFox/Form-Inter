@@ -18,33 +18,33 @@ export default async function AdminFormationsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="signature text-[26px] leading-tight text-encre">Formations</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Formations</h1>
 
       <form
         action={createFormation}
-        className="grid grid-cols-1 gap-4 cadre p-4 sm:grid-cols-2"
+        className="grid grid-cols-1 gap-4 rounded-lg border border-zinc-200 bg-white p-4 sm:grid-cols-2 dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <h2 className="sm:col-span-2 text-[13px] text-encre-3">
+        <h2 className="sm:col-span-2 text-sm font-semibold">
           Ajouter une formation
         </h2>
         <div className="sm:col-span-2">
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Intitulé
           </label>
           <input
             name="intitule"
             required
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Organisme
           </label>
           <select
             name="organismeId"
             required
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           >
             <option value="">Sélectionner…</option>
             {organismes.map((o) => (
@@ -55,12 +55,12 @@ export default async function AdminFormationsPage() {
           </select>
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Domaine
           </label>
           <select
             name="domaineId"
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           >
             <option value="">Aucun</option>
             {domaines.map((d) => (
@@ -71,7 +71,7 @@ export default async function AdminFormationsPage() {
           </select>
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Durée
           </label>
           <input
@@ -79,35 +79,35 @@ export default async function AdminFormationsPage() {
             type="number"
             step="0.5"
             min="0"
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Unité
           </label>
           <select
             name="dureeUnite"
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           >
             <option value="jours">jours</option>
             <option value="heures">heures</option>
           </select>
         </div>
         <div className="sm:col-span-2">
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Description
           </label>
           <textarea
             name="description"
             rows={3}
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div className="sm:col-span-2">
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] bg-action px-4 py-2 text-sm font-medium text-action-texte transition-opacity hover:opacity-85 disabled:pointer-events-none disabled:opacity-40"
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             Ajouter
           </button>
@@ -119,10 +119,10 @@ export default async function AdminFormationsPage() {
           <Link
             key={f.id}
             href={`/admin/formations/${f.id}`}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--rayon)] border border-trait bg-surface px-4 py-3 text-sm hover:bg-surface-creuse"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
           >
             <span className="font-medium">{f.intitule}</span>
-            <span className="text-encre-2">
+            <span className="text-zinc-500">
               {f.organisme.nom}
               {f.domaine ? ` · ${f.domaine.nom}` : ""} · {f._count.sessions}{" "}
               session{f._count.sessions > 1 ? "s" : ""}
@@ -130,7 +130,7 @@ export default async function AdminFormationsPage() {
           </Link>
         ))}
         {formations.length === 0 && (
-          <p className="text-sm text-encre-2">Aucune formation pour le moment.</p>
+          <p className="text-sm text-zinc-500">Aucune formation pour le moment.</p>
         )}
       </div>
     </div>

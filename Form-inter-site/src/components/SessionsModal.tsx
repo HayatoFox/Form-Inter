@@ -1,22 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import * as Dialog from "@radix-ui/react-dialog";
+import { Modal } from "@/components/ui/Modal";
 import type { FormationWithRelations } from "@/components/FormationCard";
-import { Reglure } from "@/components/Reglure";
-import { TableauSessions } from "@/components/TableauSessions";
-import { formatDuree } from "@/lib/dates";
-import { lien } from "@/lib/ui";
+import { formatPeriode } from "@/lib/dates";
 
-/**
- * La liste des dates d'une formation.
- *
- * Le comportement (focus piégé et rendu, fermeture au clavier, verrouillage du
- * défilement, sémantique ARIA) vient de Radix plutôt que d'un piège à focus
- * écrit à la main : c'est une primitive éprouvée, il n'y a aucune raison d'en
- * réécrire une version moins bonne. Toute la direction artistique est posée
- * par-dessus.
- */
 export function SessionsModal({
   formation,
   sessions,
@@ -28,84 +16,110 @@ export function SessionsModal({
   filtered: boolean;
   onClose: () => void;
 }) {
-  const duree = formatDuree(formation.dureeValeur, formation.dureeUnite);
-
   return (
-    <Dialog.Root open onOpenChange={(ouvert) => !ouvert && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-[color-mix(in_srgb,var(--encre)_45%,transparent)]" />
-        <Dialog.Content
-          className="cadre fixed top-1/2 left-1/2 z-50 flex max-h-[86vh] w-[min(54rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden outline-none"
-          onOpenAutoFocus={(e) => e.preventDefault()}
+    <Modal onClose={onClose} title={formation.intitule}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">{formation.intitule}</h2>
+          <p className="text-sm text-zinc-500">
+            {formation.organisme.nom}
+            {formation.typeFormation ? ` · ${formation.typeFormation}` : ""}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fermer"
+          className="shrink-0 rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
         >
-          <div className="flex items-start justify-between gap-4 border-b border-trait px-5 py-4">
-            <div className="min-w-0">
-              <Dialog.Title className="signature text-[22px] leading-[1.2] text-encre">
-                {formation.intitule}
-              </Dialog.Title>
-              <Dialog.Description className="mt-1 text-[13px] text-encre-3">
-                {formation.organisme.nom}
-                {formation.domaine && (
-                  <>
-                    <span className="text-encre-4"> / </span>
-                    {formation.domaine.nom}
-                  </>
-                )}
-                {duree && (
-                  <>
-                    <span className="text-encre-4"> / </span>
-                    <span className="donnee">{duree}</span>
-                  </>
-                )}
-              </Dialog.Description>
-            </div>
-            <Dialog.Close
-              aria-label="Fermer"
-              className="-mt-1 -mr-1 shrink-0 rounded-[3px] px-2 py-1 text-encre-3 transition-colors hover:text-encre"
+          ✕
+        </button>
+      </div>
+
+      {formation.description && (
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+          {formation.description}
+        </p>
+      )}
+
+      {formation.urlProgramme && (
+        <a
+          href={formation.urlProgramme}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-block text-sm underline"
+        >
+          Programme de la formation ↗
+        </a>
+      )}
+
+      <h3 className="mt-5 text-sm font-semibold">
+        {sessions.length} session{sessions.length > 1 ? "s" : ""}{" "}
+        {filtered ? "correspondant à votre recherche" : "planifiée(s)"}
+      </h3>
+
+      {sessions.length === 0 ? (
+        <p className="mt-2 text-sm text-zinc-500">
+          Aucune session ne correspond aux filtres sélectionnés.
+        </p>
+      ) : (
+        <ul className="mt-3 flex flex-col gap-2">
+          {sessions.map((s) => (
+            <li
+              key={s.id}
+              className="rounded-md border border-zinc-200 px-4 py-3 text-sm dark:border-zinc-800"
             >
-              Fermer
-            </Dialog.Close>
-          </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium">{formatPeriode(s)}</span>
+                <span className="text-zinc-500">
+                  {s.centre
+                    ? `${s.centre.nom} — ${s.centre.ville}`
+                    : "Lieu à confirmer"}
+                </span>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
+                {s.dureeJours !== null && (
+                  <span>
+                    {s.dureeJours} jour{s.dureeJours > 1 ? "s" : ""}
+                  </span>
+                )}
+                {s.tarif && <span>{s.tarif}</span>}
+                {s.placesInfo && <span>{s.placesInfo}</span>}
+                {s.remarque && <span>{s.remarque}</span>}
+                {s.urlProgramme && s.urlProgramme !== formation.urlProgramme && (
+                  <a
+                    href={s.urlProgramme}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    Programme ↗
+                  </a>
+                )}
+                {s.sourceUrl && (
+                  <a
+                    href={s.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    Voir sur le site de l&apos;organisme ↗
+                  </a>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
-          {/* La même réglure qu'en carte, agrandie et légendée : on garde le
-              repère qu'on avait sous les yeux avant d'ouvrir. */}
-          <div className="border-b border-trait px-5 py-4">
-            <Reglure
-              sessions={sessions}
-              hauteur={110}
-              libelles
-              tailleLibelle={24}
-            />
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {formation.description && (
-              <p className="border-b border-trait px-5 py-4 text-sm leading-relaxed whitespace-pre-line text-encre-2">
-                {formation.description}
-              </p>
-            )}
-
-            {sessions.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-encre-3">
-                Aucune session ne correspond aux filtres sélectionnés.
-              </p>
-            ) : (
-              <TableauSessions sessions={sessions} format="court" compact />
-            )}
-          </div>
-
-          <div className="flex items-center justify-between gap-4 border-t border-trait px-5 py-3 text-sm">
-            <span className="text-encre-3">
-              <span className="donnee text-encre">{sessions.length}</span>{" "}
-              session{sessions.length > 1 ? "s" : ""}
-              {filtered ? " correspondant à la recherche" : ""}
-            </span>
-            <Link href={`/formations/${formation.id}`} className={lien}>
-              Fiche complète
-            </Link>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+      <div className="mt-5 flex justify-end">
+        <Link
+          href={`/formations/${formation.id}`}
+          className="text-sm text-zinc-500 underline hover:text-zinc-900 dark:hover:text-zinc-100"
+        >
+          Voir la fiche complète →
+        </Link>
+      </div>
+    </Modal>
   );
 }

@@ -1,301 +1,60 @@
 @import "tailwindcss";
 
-/* =============================================================================
-   Formations Inter — système visuel
-   -----------------------------------------------------------------------------
-   Le produit n'est pas une page de fiches, c'est un CALENDRIER : trois mille
-   sessions datées, quarante-cinq villes, relevées chaque nuit chez cinq
-   organismes. Tout part de là.
-
-   L'artefact de signature est « la réglure » : la densité des sessions sur
-   douze mois, dessinée à partir des vraies données. Petite sur chaque
-   formation, grande sur le premier écran, où elle tient lieu de composition.
-   Aucune autre page ne peut la porter, puisqu'elle EST ce catalogue.
-
-   Trois décisions tiennent le reste.
-
-   1. Encre sur papier. Neutres légèrement chauds, volontairement à l'écart des
-      trois défauts connus : ni crème, ni le gris #f3f4f6 des kits, ni le
-      charbon bleuté des thèmes sombres. Le noir de ce site est chaud (#131211,
-      rouge > bleu), il appartient à cette marque.
-
-   2. Un seul accent, le bleu PROINSEC, et il ne remplit jamais un bouton. Il
-      signale ce qui est vivant : un lien, le focus, le mois en cours dans la
-      réglure. L'action principale est en encre pleine, pas en couleur vive.
-
-   3. Une seule famille par rôle. Gambarino porte la signature (marque, titres,
-      grands nombres) ; le corps est en system-ui, vraiment neutre ; les
-      données — dates, tarifs, codes, compteurs — sont en chasse fixe système,
-      parce que ce sont des données et pas un costume.
-   ========================================================================== */
-
 :root {
-  /* Papier et encre. Chaud, sans virer au crème. */
-  --papier: #faf9f7;
-  --surface: #ffffff;
-  --surface-creuse: #f2f0ec;
+  --background: #ffffff;
+  --foreground: #171717;
+}
 
-  --encre: #191714;
-  --encre-2: #55514a;
-  --encre-3: #8b867d;
-  --encre-4: #b5b0a6;
-
-  --trait: #e4e0d9;
-  --trait-fort: #cfc9be;
-
-  /* Bleu PROINSEC. Un accent, jamais un remplissage. */
-  --vif: #0069a8;
-  --vif-doux: #0069a812;
-
-  --alerte: #a8500f;
-  --erreur: #a32b22;
-  --erreur-doux: #a32b220f;
-
-  /* L'action est en encre : contraste honnête, pas de pastille saturée. */
-  --action: var(--encre);
-  --action-texte: #faf9f7;
-
-  --rayon: 0.5rem;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --papier: #131211;
-    --surface: #1b1918;
-    --surface-creuse: #242220;
-
-    --encre: #f2efe9;
-    --encre-2: #a9a49a;
-    --encre-3: #7c766c;
-    --encre-4: #55504a;
-
-    --trait: #2b2825;
-    --trait-fort: #3d3934;
-
-    --vif: #6cb6e8;
-    --vif-doux: #6cb6e814;
-
-    --alerte: #d9994e;
-    --erreur: #e08279;
-    --erreur-doux: #e0827914;
-
-    --action: #f2efe9;
-    --action-texte: #131211;
+    --background: #0a0a0a;
+    --foreground: #ededed;
   }
-}
-
-@theme inline {
-  --color-papier: var(--papier);
-  --color-surface: var(--surface);
-  --color-surface-creuse: var(--surface-creuse);
-
-  --color-encre: var(--encre);
-  --color-encre-2: var(--encre-2);
-  --color-encre-3: var(--encre-3);
-  --color-encre-4: var(--encre-4);
-
-  --color-trait: var(--trait);
-  --color-trait-fort: var(--trait-fort);
-
-  --color-vif: var(--vif);
-  --color-vif-doux: var(--vif-doux);
-  --color-alerte: var(--alerte);
-  --color-erreur: var(--erreur);
-  --color-erreur-doux: var(--erreur-doux);
-
-  --color-action: var(--action);
-  --color-action-texte: var(--action-texte);
-
-  --radius-cadre: var(--rayon);
-
-  --font-signature: var(--font-gambarino), ui-serif, Georgia, serif;
-  --font-sans: system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-/* --- Base ----------------------------------------------------------------- */
-
-html {
-  color-scheme: light dark;
-  -webkit-text-size-adjust: 100%;
-  /* `clip` plutôt que `hidden` : on empêche la barre horizontale que provoque
-     une pleine largeur en `vw`, sans créer de conteneur de défilement (ce qui
-     casserait un `position: sticky` à l'intérieur). */
-  overflow-x: clip;
-}
-
-/* Sortir de la mesure du texte pour occuper toute la fenêtre. La réglure du
-   premier écran s'en sert : le titre reste dans la colonne, l'artefact la
-   traverse. C'est ce décalage de plan qui donne sa profondeur à la page. */
-.pleine-largeur {
-  width: 100vw;
-  max-width: 100vw;
-  margin-left: calc(50% - 50vw);
 }
 
 body {
-  background: var(--papier);
-  color: var(--encre);
-  font-family: system-ui, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Le papier a un grain. C'est une vraie texture de fond — bruit fractal fin,
-   à peine au-dessus du seuil de perception — et non un aplat : la page est un
-   substrat imprimé, pas un remplissage. Elle est fixe (un grain qui défile
-   fourmille), sous tout le contenu, et sans interaction possible : le texte et
-   les marques restent nets par-dessus. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)' opacity='0.5'/%3E%3C/svg%3E");
-  background-size: 200px 200px;
-  opacity: 0.055;
-}
+/* --- Carte Leaflet ---------------------------------------------------------
+   Leaflet apporte le comportement ; le peu d'apparence qu'on reprend suit le
+   thème du site. Les règles sont préfixées par `.carte-site`, la classe de
+   notre conteneur : la feuille de Leaflet est importée depuis le composant,
+   donc injectée APRÈS celle du site, et à spécificité égale c'est elle qui
+   gagnerait — la bulle resterait blanche au milieu d'une page sombre. */
 
-@media (prefers-color-scheme: dark) {
-  /* Sur l'encre, le grain doit éclairer, pas assombrir. */
-  body::before {
-    filter: invert(1);
-    opacity: 0.04;
-  }
-}
-
-/* Le focus est la seule chose que le bleu remplit, et il ne disparaît jamais :
-   le back office se remplit beaucoup au clavier. */
-:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--vif);
-  outline-offset: 2px;
-  border-radius: 3px;
-}
-
-::selection {
-  background: var(--vif);
-  color: #fff;
-}
-
-/* La signature. Une seule fonte la porte, et seulement elle. */
-.signature {
-  font-family: var(--font-gambarino), ui-serif, Georgia, serif;
-  font-weight: 400;
-  letter-spacing: -0.005em;
-}
-
-/* Dates, tarifs, codes, compteurs : ce sont des données, la chasse fixe y est
-   à sa place. Elle ne sort pas de ce rôle. */
-.donnee {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "ss01";
-  letter-spacing: -0.01em;
-}
-
-/* --- Le cadre ------------------------------------------------------------- */
-
-/* Pas d'ombre, pas de contour contrasté : la surface se détache du papier par
-   sa valeur, et son bord est de sa propre couleur. On sent une arête, on ne
-   voit pas un trait dessiné. */
-.cadre {
-  background: var(--surface);
-  border-radius: var(--rayon);
-  box-shadow: inset 0 0 0 1px var(--trait);
-}
-
-/* --- La réglure ----------------------------------------------------------- */
-
-/* Géométrie inventée pour ce site : un fût à sommet plat dont le pied est
-   chanfreiné des deux côtés. Reprise à l'identique de la carte au premier
-   écran, c'est elle qui signe les pages. */
-.reglure-fut {
-  fill: var(--encre-4);
-  transition: fill 140ms ease;
-}
-.reglure-fut[data-charge="1"] { fill: var(--encre-3); }
-.reglure-fut[data-charge="2"] { fill: var(--encre-2); }
-.reglure-fut[data-charge="3"] { fill: var(--encre); }
-.reglure-fut[data-courant="oui"] { fill: var(--vif); }
-
-/* La seule interaction inventée du site, et elle porte sur l'artefact :
-   survoler une colonne fait reculer l'année entière d'un ton et avance le mois
-   visé. On ne met pas en valeur en ajoutant quelque chose — on retire le reste.
-   Rien n'est caché, rien n'apparaît : ce sont des valeurs qui se déplacent sur
-   du contenu déjà à l'écran. */
-.reglure:hover .reglure-fut { fill: var(--encre-4); }
-.reglure:hover .reglure-libelle { fill: var(--encre-4); }
-.reglure .reglure-mois:hover .reglure-fut { fill: var(--vif); }
-.reglure .reglure-mois:hover .reglure-libelle { fill: var(--vif); }
-
-.reglure-libelle { transition: fill 140ms ease; }
-
-.reglure-socle {
-  stroke: var(--trait-fort);
-  stroke-width: 1;
-  stroke-linecap: round;
-}
-
-/* --- La carte ------------------------------------------------------------- */
-
-/* Leaflet apporte le comportement ; l'apparence reste celle du site. Sans ces
-   quelques règles, la carte arrive avec ses bulles blanches et son cadre bleu
-   d'origine, qui jurent en thème sombre et n'appartiennent à personne. */
-.carte-disque {
-  stroke: var(--vif);
-  fill: var(--vif);
-  fill-opacity: 0.06;
-}
-
-/* Toutes ces règles sont préfixées par `.carte-site`, la classe que porte notre
-   conteneur. Ce n'est pas de la coquetterie : la feuille de Leaflet est
-   importée depuis le composant, donc injectée APRÈS celle du site. À
-   spécificité égale, c'est elle qui gagne — la bulle et le fond restaient
-   blancs en thème sombre, au milieu d'une page noire. */
 .carte-site.leaflet-container {
-  background: var(--surface-creuse);
+  background: #e4e4e7;
   font: inherit;
 }
 
-.carte-site .leaflet-popup-content-wrapper,
-.carte-site .leaflet-popup-tip {
-  background: var(--surface);
-  color: var(--encre);
-  box-shadow: inset 0 0 0 1px var(--trait);
+@media (prefers-color-scheme: dark) {
+  .carte-site.leaflet-container {
+    background: #27272a;
+  }
+  .carte-site .leaflet-popup-content-wrapper,
+  .carte-site .leaflet-popup-tip,
+  .carte-site .leaflet-bar a,
+  .carte-site .leaflet-control-attribution {
+    background: #18181b;
+    color: #e4e4e7;
+  }
+  .carte-site .leaflet-bar a {
+    border-color: #3f3f46;
+  }
 }
-.carte-site .leaflet-popup-content-wrapper {
-  border-radius: var(--rayon);
-}
+
 .carte-site .leaflet-popup-content {
   margin: 0.75rem 0.9rem;
   font-size: 13px;
   line-height: 1.45;
-}
-.carte-site a.leaflet-popup-close-button {
-  color: var(--encre-3);
-}
-
-.carte-site .leaflet-bar a,
-.carte-site .leaflet-control-attribution {
-  background: var(--surface);
-  color: var(--encre-2);
-  border-color: var(--trait);
-}
-.carte-site .leaflet-bar a {
-  color: var(--encre);
-}
-.carte-site .leaflet-control-attribution a {
-  color: var(--vif);
-}
-
-/* --- Confort -------------------------------------------------------------- */
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
 }

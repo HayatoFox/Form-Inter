@@ -3,8 +3,7 @@
 import { useState } from "react";
 import type { Prisma } from "@/generated/prisma/client";
 import { SessionsModal } from "@/components/SessionsModal";
-import { Reglure } from "@/components/Reglure";
-import { debutDuJour, formatDateCourt, formatDuree } from "@/lib/dates";
+import { debutDuJour, formatDateCourt } from "@/lib/dates";
 
 export type FormationWithRelations = Prisma.FormationGetPayload<{
   include: {
@@ -16,8 +15,14 @@ export type FormationWithRelations = Prisma.FormationGetPayload<{
 
 export type SessionWithCentre = FormationWithRelations["sessions"][number];
 
-// Les sessions à entrée permanente n'ont pas de date : elles passent après les
-// sessions datées, dans l'ordre d'affichage comme dans le tri.
+function formatDuree(f: FormationWithRelations) {
+  if (!f.dureeValeur) return null;
+  const unite = f.dureeUnite ?? "";
+  return `${f.dureeValeur} ${unite}`.trim();
+}
+
+// Les sessions à entrée/sortie permanente n'ont pas de date : elles passent
+// après les sessions datées, dans l'ordre d'affichage comme dans le tri.
 export function trierSessions(
   sessions: SessionWithCentre[]
 ): SessionWithCentre[] {
@@ -29,10 +34,6 @@ export function trierSessions(
   });
 }
 
-// L'unique endroit où une couleur signale quelque chose sur une carte : quand
-// la place manque vraiment. Un ton brûlé, pas un accent saturé.
-const TENDUE = /derni|complet|limit|places? restante/i;
-
 export function FormationCard({
   formation,
   sessionsFiltered = false,
@@ -40,96 +41,72 @@ export function FormationCard({
   formation: FormationWithRelations;
   sessionsFiltered?: boolean;
 }) {
-  const [ouverte, setOuverte] = useState(false);
+  const [open, setOpen] = useState(false);
+  const duree = formatDuree(formation);
 
-  const sessions = trierSessions(formation.sessions);
+  const sortedSessions = trierSessions(formation.sessions);
+  // Hors recherche filtrée, on ne met en avant que les sessions à venir ;
+  // avec des filtres actifs, la session la plus proche du résultat suffit,
+  // même passée, puisque l'utilisateur a explicitement ciblé cette période.
   const aujourdhui = debutDuJour();
-  const prochaine = sessionsFiltered
-    ? sessions[0]
-    : (sessions.find((s) => s.dateDebut && s.dateDebut >= aujourdhui) ??
-      sessions.find((s) => !s.dateDebut));
-
-  const duree = formatDuree(formation.dureeValeur, formation.dureeUnite);
-  const tarif = prochaine?.tarif ?? sessions.find((s) => s.tarif)?.tarif ?? null;
-  const tendue = prochaine?.placesInfo
-    ? TENDUE.test(prochaine.placesInfo)
-    : false;
+  const previewSession = sessionsFiltered
+    ? sortedSessions[0]
+    : (sortedSessions.find((s) => s.dateDebut && s.dateDebut >= aujourdhui) ??
+      sortedSessions.find((s) => !s.dateDebut));
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOuverte(true)}
-        aria-haspopup="dialog"
-        /* Pas d'élévation au survol, pas d'ombre : l'arête se raffermit et la
-           surface se creuse d'un cran. Tonal, posé. */
-        className="cadre group flex w-full flex-col gap-3 p-4 text-left transition-[box-shadow,background-color] duration-150 hover:bg-surface-creuse hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+        onClick={() => setOpen(true)}
+        className="block w-full rounded-lg border border-zinc-200 bg-white p-5 text-left transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <div>
-          <h3 className="signature text-[17px] leading-[1.25] text-encre">
-            {formation.intitule}
-          </h3>
-          {/* Plusieurs organismes proposent le même intitulé : « AIPR
-              Concepteur » revient quatre fois d'affilée dans un tri
-              alphabétique. L'organisme est le seul discriminant, il passe donc
-              devant le domaine. */}
-          <p className="mt-1 text-[13px]">
-            <span className="text-encre-2">{formation.organisme.nom}</span>
-            {formation.domaine && (
-              <span className="text-encre-4"> / {formation.domaine.nom}</span>
-            )}
-          </p>
-        </div>
-
-        {/* La réglure : la question qu'on se pose devant un catalogue, c'est
-            « ça tourne quand ? ». Elle y répond sans ouvrir la fiche. */}
-        <Reglure sessions={sessions} hauteur={120} />
-
-        {/* Le bloc de données est ancré en bas ET de hauteur fixe : trois
-            lignes, toujours, même quand la troisième est vide. D'une carte à
-            l'autre d'une même rangée, la date, le tarif, la ville et la durée
-            tombent exactement sur les mêmes horizontales, quelle que soit la
-            longueur de l'intitulé au-dessus ou la présence d'une alerte en
-            dessous. Une grille de cartes qui se compare doit s'aligner.
-
-            Pas de filet ici : le socle de la réglure juste au-dessus est déjà
-            la ligne, en tracer une seconde à dix pixels serait de la structure
-            décorative. */}
-        <div className="mt-auto text-[13px]">
-          <div className="flex items-baseline justify-between gap-3">
-            {prochaine ? (
-              <span className="donnee truncate text-encre">
-                {prochaine.dateDebut
-                  ? formatDateCourt(prochaine.dateDebut)
-                  : "entrée permanente"}
-              </span>
-            ) : (
-              <span className="text-encre-4">aucune date</span>
-            )}
-            {tarif && (
-              <span className="donnee shrink-0 text-encre">{tarif}</span>
-            )}
-          </div>
-          <div className="mt-0.5 flex items-baseline justify-between gap-3">
-            <span className="truncate text-encre-2">
-              {prochaine?.centre?.ville ?? "lieu à confirmer"}
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h3 className="text-base font-semibold">{formation.intitule}</h3>
+          {formation.domaine && (
+            <span className="shrink-0 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+              {formation.domaine.nom}
             </span>
-            {duree && (
-              <span className="donnee shrink-0 text-encre-4">{duree}</span>
-            )}
-          </div>
-          <p className="mt-1 min-h-[1.15rem] text-alerte">
-            {tendue ? prochaine?.placesInfo : ""}
+          )}
+        </div>
+        <p className="mt-1 text-sm text-zinc-500">{formation.organisme.nom}</p>
+        {formation.description && (
+          <p className="mt-2 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
+            {formation.description}
           </p>
+        )}
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-500">
+          {duree && <span>{duree}</span>}
+          {sessionsFiltered && (
+            <span>
+              {sortedSessions.length} session
+              {sortedSessions.length > 1 ? "s" : ""} correspondante
+              {sortedSessions.length > 1 ? "s" : ""}
+            </span>
+          )}
+          {previewSession && (
+            <span>
+              {!previewSession.dateDebut
+                ? "Entrée/sortie permanente"
+                : `${
+                    sessionsFiltered ? "Session la plus proche" : "Prochaine session"
+                  } : ${formatDateCourt(previewSession.dateDebut)}`}
+              {previewSession.centre ? ` — ${previewSession.centre.ville}` : ""}
+            </span>
+          )}
+          {previewSession?.tarif && <span>{previewSession.tarif}</span>}
+          {!previewSession && sortedSessions.length === 0 && (
+            <span>Aucune session planifiée</span>
+          )}
         </div>
       </button>
 
-      {ouverte && (
+      {open && (
         <SessionsModal
           formation={formation}
-          sessions={sessions}
+          sessions={sortedSessions}
           filtered={sessionsFiltered}
-          onClose={() => setOuverte(false)}
+          onClose={() => setOpen(false)}
         />
       )}
     </>

@@ -4,14 +4,15 @@
   "private": true,
   "scripts": {
     "postinstall": "prisma generate",
-    "dev": "prisma migrate deploy && next dev",
+    "dev": "prisma migrate deploy && tsx prisma/amorcer.ts && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "db:seed": "prisma migrate deploy && tsx prisma/seed.ts",
     "db:demo": "prisma migrate deploy && tsx prisma/seed-demo.ts",
     "db:setup": "prisma migrate deploy",
-    "db:info": "tsx prisma/info.ts"
+    "db:info": "tsx prisma/info.ts",
+    "db:amorcer": "prisma migrate deploy && tsx prisma/amorcer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

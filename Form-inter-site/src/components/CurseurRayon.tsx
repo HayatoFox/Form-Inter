@@ -2,7 +2,6 @@
 
 import { useId, useState } from "react";
 import { RAYON_MAX, RAYON_PAS, libelleRayon } from "@/lib/geo/rayon";
-import { legende } from "@/lib/ui";
 
 /**
  * Le rayon autour de la ville choisie.
@@ -12,25 +11,23 @@ import { legende } from "@/lib/ui";
  * un quart d'heure. Le curseur répond exactement à ça.
  *
  * Le champ envoie des kilomètres, pas un indice de palier. Une graduation
- * irrégulière (10, 20, 30, 50, 75, 100…) collerait mieux aux distances qu'on
- * parcourt vraiment, mais elle obligerait à passer par un indice traduit en
- * JavaScript — et sans JavaScript le curseur ne servirait plus à rien. Dix
- * kilomètres par cran est moins fin et toujours utilisable.
+ * irrégulière (10, 20, 30, 50, 75…) collerait mieux aux distances qu'on
+ * parcourt vraiment, mais elle obligerait à traduire l'indice en JavaScript —
+ * et sans JavaScript le curseur ne servirait plus à rien. Dix kilomètres par
+ * cran est moins fin et toujours utilisable.
  *
  * Le composant est client pour une seule raison : afficher la valeur en clair
  * pendant qu'on glisse.
  */
-
 export function CurseurRayon({ valeur }: { valeur: number }) {
   const borne = Math.min(Math.max(valeur, 0), RAYON_MAX);
   const [km, setKm] = useState(borne);
 
-  // `useState` ne s'amorce qu'au montage. Après un clic sur « 150 km autour »
-  // pour retirer le filtre, React réutilise l'instance du composant : l'URL
-  // n'a plus de rayon, mais le curseur restait à 150 et affichait le contraire
-  // de ce que la page montrait. On réaligne pendant le rendu quand la valeur
-  // venue du serveur a changé — le motif recommandé pour dériver un état
-  // d'une prop sans effet ni clignotement.
+  // `useState` ne s'amorce qu'au montage. Après un clic sur « Réinitialiser »,
+  // React réutilise l'instance du composant : l'URL n'a plus de rayon, mais le
+  // curseur resterait sur son ancienne valeur et afficherait le contraire de
+  // ce que la page montre. On réaligne pendant le rendu quand la valeur venue
+  // du serveur a changé.
   const [derniereProp, setDerniereProp] = useState(borne);
   if (derniereProp !== borne) {
     setDerniereProp(borne);
@@ -38,19 +35,18 @@ export function CurseurRayon({ valeur }: { valeur: number }) {
   }
 
   const id = useId();
-  const graduations = useId();
 
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={id} className={legende}>
-          Rayon
-        </label>
-        <span className="donnee text-[13px] text-encre">
+      <label
+        htmlFor={id}
+        className="flex items-baseline justify-between gap-2 text-xs font-medium text-zinc-500"
+      >
+        Rayon
+        <span className="tabular-nums text-zinc-700 dark:text-zinc-300">
           {km <= 0 ? "ville seule" : `${km} km`}
         </span>
-      </div>
-
+      </label>
       <input
         id={id}
         name="rayon"
@@ -59,16 +55,10 @@ export function CurseurRayon({ valeur }: { valeur: number }) {
         max={RAYON_MAX}
         step={RAYON_PAS}
         value={km}
-        list={graduations}
         onChange={(e) => setKm(Number(e.target.value))}
         aria-label={`Rayon autour de la ville : ${libelleRayon(km)}`}
-        className="mt-2 h-4 w-full cursor-pointer accent-[var(--encre)]"
+        className="mt-3 w-full cursor-pointer accent-zinc-900 dark:accent-zinc-100"
       />
-      <datalist id={graduations}>
-        {[0, 30, 60, 90, 120, 150].map((v) => (
-          <option key={v} value={v} />
-        ))}
-      </datalist>
     </div>
   );
 }

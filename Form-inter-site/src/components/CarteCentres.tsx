@@ -5,7 +5,6 @@ import "leaflet/dist/leaflet.css";
 import type { Map as CarteLeaflet, LayerGroup, Circle, Marker } from "leaflet";
 import { formatDistance } from "@/lib/geo/distance";
 import { RAYON_MAX, RAYON_PAS } from "@/lib/geo/rayon";
-import { action, cadre, champ, legende } from "@/lib/ui";
 
 /**
  * « Où se former près de mon client ? »
@@ -128,16 +127,15 @@ export function CarteCentres({
 
       cercle.current = L.circle([point.latitude, point.longitude], {
         radius: km * 1000,
-        // Les couleurs passent par une classe : Leaflet écrit `color` et
-        // `fillColor` dans des attributs de présentation SVG, où `var()` ne se
-        // résout pas. En CSS, si — et le disque suit alors le thème.
-        className: "carte-disque",
+        color: "#2563eb",
         weight: 1,
+        fillColor: "#2563eb",
+        fillOpacity: 0.06,
       }).addTo(c);
 
       depuisMarqueur.current = L.marker([point.latitude, point.longitude], {
         icon: L.divIcon({
-          html: marqueur("var(--vif)", 30),
+          html: marqueur("#2563eb", 30),
           className: "",
           iconSize: [19, 30],
           iconAnchor: [9, 30],
@@ -151,7 +149,7 @@ export function CarteCentres({
       for (const centre of liste) {
         L.marker([centre.latitude, centre.longitude], {
           icon: L.divIcon({
-            html: marqueur("var(--encre)"),
+            html: marqueur("#18181b"),
             className: "",
             iconSize: [16, 26],
             iconAnchor: [8, 26],
@@ -253,9 +251,9 @@ export function CarteCentres({
   }, []);
 
   return (
-    <section className={`${cadre} p-5`}>
-      <h2 className="signature text-[17px] text-encre">Où se former</h2>
-      <p className="mt-1 max-w-2xl text-sm text-encre-2">
+    <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <h2 className="text-base font-semibold">Où se former</h2>
+      <p className="mt-1 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
         Indiquez l&apos;adresse du client : la carte montre les centres qui
         proposent cette formation autour de lui, et la distance de chacun.
       </p>
@@ -271,32 +269,38 @@ export function CarteCentres({
           onChange={(e) => setAdresse(e.target.value)}
           placeholder="12 rue de la Paix, 35000 Rennes"
           autoComplete="street-address"
-          className={`${champ} min-w-0 flex-1`}
+          className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
         />
-        <button type="submit" disabled={enCours} className={action}>
+        <button
+          type="submit"
+          disabled={enCours}
+          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        >
           {enCours ? "Recherche…" : "Situer"}
         </button>
       </form>
 
       {erreur && (
-        <p role="alert" className="mt-2 text-sm text-erreur">
+        <p role="alert" className="mt-2 text-sm text-red-600">
           {erreur}
         </p>
       )}
 
       {depart && (
         <>
-          <p className="mt-3 text-[13px] text-encre-3">
-            Départ : <span className="text-encre-2">{depart.libelle}</span>
+          <p className="mt-3 text-xs text-zinc-500">
+            Départ : <span className="text-zinc-700 dark:text-zinc-300">{depart.libelle}</span>
           </p>
 
           <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
             <div className="min-w-[14rem] flex-1">
               <div className="flex items-baseline justify-between gap-2">
-                <label htmlFor={idRayon} className={legende}>
+                <label htmlFor={idRayon} className="text-xs font-medium text-zinc-500">
                   Rayon
                 </label>
-                <span className="donnee text-[13px] text-encre">{rayon} km</span>
+                <span className="text-xs tabular-nums text-zinc-700 dark:text-zinc-300">
+                  {rayon} km
+                </span>
               </div>
               <input
                 id={idRayon}
@@ -308,11 +312,11 @@ export function CarteCentres({
                 onChange={(e) => setRayon(Number(e.target.value))}
                 onPointerUp={() => rafraichir(rayon, toutesFormations)}
                 onKeyUp={() => rafraichir(rayon, toutesFormations)}
-                className="mt-2 h-4 w-full cursor-pointer accent-[var(--encre)]"
+                className="mt-2 w-full cursor-pointer accent-zinc-900 dark:accent-zinc-100"
               />
             </div>
 
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-encre-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
               <input
                 type="checkbox"
                 checked={toutesFormations}
@@ -320,7 +324,7 @@ export function CarteCentres({
                   setToutesFormations(e.target.checked);
                   rafraichir(rayon, e.target.checked);
                 }}
-                className="h-4 w-4 accent-[var(--encre)]"
+                className="h-4 w-4"
               />
               Tous les organismes, pas seulement cette formation
             </label>
@@ -335,28 +339,34 @@ export function CarteCentres({
       {depart && (
         <div
           ref={conteneur}
-          className="carte-site mt-4 h-[26rem] overflow-hidden rounded-[var(--rayon)] shadow-[inset_0_0_0_1px_var(--trait)]"
+          className="carte-site mt-4 h-[26rem] overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800"
         />
       )}
 
       {depart && (
-        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-[13px]">
-          <p className="text-encre-3">
-            <span className="donnee text-encre">{centres.length}</span> centre
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 text-xs">
+          <p className="text-zinc-500">
+            <span className="font-medium text-zinc-800 dark:text-zinc-200">
+              {centres.length}
+            </span>{" "}
+            centre
             {centres.length > 1 ? "s" : ""} à moins de{" "}
-            <span className="donnee">{rayon} km</span>
+            <span className="tabular-nums">{rayon} km</span>
             {toutesFormations ? "" : ` proposant « ${intitule} »`}.
           </p>
-          <p className="text-encre-4">
+          <p className="text-zinc-400">
             Distances à vol d&apos;oiseau. Fond de carte OpenStreetMap.
           </p>
         </div>
       )}
 
       {choisi && (
-        <p className="mt-2 text-sm text-encre-2">
-          <span className="text-encre">{choisi.organismeNom}</span> à{" "}
-          <span className="donnee text-encre">
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <span className="font-medium text-zinc-900 dark:text-zinc-100">
+            {choisi.organismeNom}
+          </span>{" "}
+          à{" "}
+          <span className="font-medium tabular-nums text-zinc-900 dark:text-zinc-100">
             {formatDistance(choisi.distanceKm)}
           </span>{" "}
           — {choisi.adresse ? `${choisi.adresse}, ` : ""}

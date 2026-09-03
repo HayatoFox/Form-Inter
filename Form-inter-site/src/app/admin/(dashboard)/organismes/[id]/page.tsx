@@ -27,64 +27,64 @@ export default async function AdminOrganismeDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="signature text-[26px] leading-tight text-encre">{organisme.nom}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{organisme.nom}</h1>
 
       <form
         action={updateOrganismeWithId}
-        className="grid grid-cols-1 gap-4 cadre p-4 sm:grid-cols-2"
+        className="grid grid-cols-1 gap-4 rounded-lg border border-zinc-200 bg-white p-4 sm:grid-cols-2 dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <h2 className="sm:col-span-2 text-[13px] text-encre-3">Informations</h2>
+        <h2 className="sm:col-span-2 text-sm font-semibold">Informations</h2>
         <div>
-          <label className="block text-[13px] text-encre-3">Nom</label>
+          <label className="block text-xs font-medium text-zinc-500">Nom</label>
           <input
             name="nom"
             required
             defaultValue={organisme.nom}
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Site web
           </label>
           <input
             name="siteWeb"
             type="url"
             defaultValue={organisme.siteWeb ?? ""}
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">
+          <label className="block text-xs font-medium text-zinc-500">
             Téléphone
           </label>
           <input
             name="telephone"
             defaultValue={organisme.telephone ?? ""}
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div>
-          <label className="block text-[13px] text-encre-3">Email</label>
+          <label className="block text-xs font-medium text-zinc-500">Email</label>
           <input
             name="email"
             type="email"
             defaultValue={organisme.email ?? ""}
-            className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
         <div className="sm:col-span-2 flex items-center gap-3">
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] bg-action px-4 py-2 text-sm font-medium text-action-texte transition-opacity hover:opacity-85 disabled:pointer-events-none disabled:opacity-40"
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             Enregistrer
           </button>
         </div>
       </form>
 
-      <div className="cadre p-4">
-        <h2 className="text-[13px] text-encre-3">Centres de formation</h2>
+      <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <h2 className="text-sm font-semibold">Centres de formation</h2>
 
         <ul className="mt-3 flex flex-col gap-2">
           {organisme.centres.map((c) => {
@@ -92,11 +92,11 @@ export default async function AdminOrganismeDetailPage({
             return (
               <li
                 key={c.id}
-                className="flex items-center justify-between gap-2 rounded-[var(--rayon)] border border-trait px-4 py-2 text-sm"
+                className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 px-4 py-2 text-sm dark:border-zinc-800"
               >
                 <div>
                   <div className="font-medium">{c.nom}</div>
-                  <div className="text-encre-2">
+                  <div className="text-zinc-500">
                     {c.ville}
                     {c.codePostal ? ` (${c.codePostal})` : ""}
                   </div>
@@ -104,7 +104,7 @@ export default async function AdminOrganismeDetailPage({
                 <form action={deleteCentreAction}>
                   <button
                     type="submit"
-                    className="text-xs text-erreur hover:underline"
+                    className="text-xs text-red-600 hover:underline"
                   >
                     Supprimer
                   </button>
@@ -113,57 +113,57 @@ export default async function AdminOrganismeDetailPage({
             );
           })}
           {organisme.centres.length === 0 && (
-            <li className="text-sm text-encre-2">Aucun centre pour le moment.</li>
+            <li className="text-sm text-zinc-500">Aucun centre pour le moment.</li>
           )}
         </ul>
 
         <form
           action={createCentreForOrganisme}
-          className="mt-4 grid grid-cols-1 gap-3 border-t border-trait pt-4 sm:grid-cols-2"
+          className="mt-4 grid grid-cols-1 gap-3 border-t border-zinc-200 pt-4 sm:grid-cols-2 dark:border-zinc-800"
         >
           <div>
-            <label className="block text-[13px] text-encre-3">
+            <label className="block text-xs font-medium text-zinc-500">
               Nom du centre
             </label>
             <input
               name="nom"
               required
-              placeholder={`${organisme.nom} - …`}
-              className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+              placeholder={`${organisme.nom} — …`}
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
             />
           </div>
           <div>
-            <label className="block text-[13px] text-encre-3">
+            <label className="block text-xs font-medium text-zinc-500">
               Ville
             </label>
             <input
               name="ville"
               required
-              className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
             />
           </div>
           <div>
-            <label className="block text-[13px] text-encre-3">
+            <label className="block text-xs font-medium text-zinc-500">
               Code postal
             </label>
             <input
               name="codePostal"
-              className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
             />
           </div>
           <div>
-            <label className="block text-[13px] text-encre-3">
+            <label className="block text-xs font-medium text-zinc-500">
               Adresse
             </label>
             <input
               name="adresse"
-              className="mt-1.5 w-full rounded-[var(--rayon)] bg-surface px-3 py-2 text-sm text-encre shadow-[inset_0_0_0_1px_var(--trait)] placeholder:text-encre-4 transition-shadow hover:shadow-[inset_0_0_0_1px_var(--trait-fort)]"
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
             />
           </div>
           <div className="sm:col-span-2">
             <button
               type="submit"
-              className="inline-flex items-center justify-center gap-2 rounded-[var(--rayon)] bg-surface-creuse px-4 py-2 text-sm font-medium text-encre transition-colors hover:bg-trait disabled:pointer-events-none disabled:opacity-40"
+              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
               Ajouter le centre
             </button>
@@ -174,7 +174,7 @@ export default async function AdminOrganismeDetailPage({
       <form action={deleteOrganismeWithId}>
         <button
           type="submit"
-          className="text-sm text-erreur hover:underline"
+          className="text-sm text-red-600 hover:underline"
         >
           Supprimer cet organisme (et ses centres/formations)
         </button>

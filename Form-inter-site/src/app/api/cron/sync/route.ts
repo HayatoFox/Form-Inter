@@ -36,9 +36,7 @@ async function traiter(request: NextRequest) {
 
   // Les centres apparus pendant la synchronisation sont localisés dans la
   // foulée. C'est le bon moment : personne n'attend la réponse, et le
-  // géocodage est cadencé à une requête par seconde. Un lot borné suffit — un
-  // passage n'apporte que quelques centres, et le reste attend la nuit
-  // suivante plutôt que de monopoliser la cadence.
+  // géocodage est cadencé à une requête par seconde.
   let geo = null;
   if (resultat.statut === "ok") {
     revaliderCatalogue();

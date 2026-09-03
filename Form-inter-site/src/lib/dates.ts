@@ -27,16 +27,18 @@ export function parseDateISO(texte: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+// Minuit UTC du jour courant, tel que le voit le serveur : c'est la borne
+// utilisée pour distinguer les sessions passées des sessions à venir.
 /**
  * Minuit UTC du jour courant à Paris : la borne qui sépare les sessions
  * passées des sessions à venir.
  *
  * Le fuseau est nommé explicitement, et ce n'est pas un détail. Cette fonction
- * tourne aussi dans le navigateur (la réglure vit dans une carte, qui est un
- * composant client) : si le serveur lisait sa date locale et le navigateur la
- * sienne, les deux ne tomberaient pas d'accord sur « aujourd'hui » entre
- * minuit et deux heures du matin, ce qui décale la réglure et fait échouer
- * l'hydratation. Un catalogue français a un seul aujourd'hui, celui de Paris.
+ * tourne aussi dans le navigateur (les cartes de formation sont des composants
+ * clients) : si le serveur lisait sa date locale et le navigateur la sienne,
+ * les deux ne tomberaient pas d'accord sur « aujourd'hui » entre minuit et
+ * deux heures du matin. Un catalogue français a un seul aujourd'hui, celui de
+ * Paris.
  */
 const jourParis = new Intl.DateTimeFormat("fr-CA", {
   timeZone: "Europe/Paris",
@@ -79,25 +81,6 @@ export function versInputDate(date: Date): string {
 
 // Une session sans date de début est une offre à entrée/sortie permanente :
 // l'absence de dates suffit à la reconnaître.
-const decimal = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
-
-/**
- * Durée lisible : « 1 jour », « 0,5 jour », « 3 jours ».
- *
- * L'unité arrive de la base au pluriel (la synchronisation pose « jours »), et
- * le nombre peut être décimal — une demi-journée est un cas courant. Sans ce
- * passage, le catalogue affiche « 1 jours » et « 0.5 jours ».
- */
-export function formatDuree(
-  valeur: number | null | undefined,
-  unite: string | null | undefined
-): string | null {
-  if (valeur === null || valeur === undefined) return null;
-  const brute = (unite ?? "jours").trim();
-  const libelle = valeur <= 1 ? brute.replace(/s$/i, "") : brute;
-  return `${decimal.format(valeur)} ${libelle}`.trim();
-}
-
 export type PeriodeSession = {
   dateDebut: Date | null;
   dateFin: Date | null;
