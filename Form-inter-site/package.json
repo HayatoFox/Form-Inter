@@ -12,7 +12,8 @@
     "db:demo": "prisma migrate deploy && tsx prisma/seed-demo.ts",
     "db:setup": "prisma migrate deploy",
     "db:info": "tsx prisma/info.ts",
-    "db:amorcer": "prisma migrate deploy && tsx prisma/amorcer.ts"
+    "db:amorcer": "prisma migrate deploy && tsx prisma/amorcer.ts",
+    "admin:motdepasse": "prisma migrate deploy && tsx prisma/mot-de-passe-admin.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

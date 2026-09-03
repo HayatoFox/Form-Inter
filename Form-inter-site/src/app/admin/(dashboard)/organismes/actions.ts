@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { exigerAdmin } from "@/lib/auth";
 import { centreSchema, organismeSchema } from "@/lib/validation";
 
 function toEntries(formData: FormData) {
@@ -159,6 +160,63 @@ export async function updateCentre(
   revalidatePath(`/admin/organismes/${organismeId}`);
   revalidatePath("/admin/centres");
   revalidatePath("/admin/sources");
+  revalidatePath("/formations");
+  revalidatePath("/organismes");
+  revalidatePath("/");
+}
+
+/**
+ * Rétablir l'adresse d'un centre telle qu'elle était avant une correction.
+ *
+ * C'est la contrepartie de l'ouverture des corrections à tout le monde : une
+ * erreur ne se discute pas, elle s'annule. Les valeurs d'avant sont conservées
+ * dans le journal, donc le rétablissement est une recopie — et il est
+ * lui-même journalisé, pour qu'on ne perde pas la trace de l'aller-retour.
+ */
+export async function retablirAdresse(modificationId: string) {
+  const admin = await exigerAdmin();
+  const trace = await prisma.modificationCentre.findUnique({
+    where: { id: modificationId },
+    include: { centre: { select: { id: true, organismeId: true, adresse: true, codePostal: true, ville: true, latitude: true, longitude: true } } },
+  });
+  if (!trace) return;
+
+  const actuel = trace.centre;
+  await prisma.$transaction([
+    prisma.centre.update({
+      where: { id: actuel.id },
+      data: {
+        adresse: trace.adresseAvant,
+        codePostal: trace.codePostalAvant,
+        ville: trace.villeAvant,
+        latitude: trace.latitudeAvant,
+        longitude: trace.longitudeAvant,
+        // Sans coordonnées d'avant, le centre repart en file de géocodage :
+        // c'est exactement l'état où il était.
+        geoStatut: trace.latitudeAvant === null ? "attente" : "ok",
+        geoLibelle: null,
+        geoRequete: null,
+        geoLe: trace.latitudeAvant === null ? null : new Date(),
+      },
+    }),
+    prisma.modificationCentre.create({
+      data: {
+        centreId: actuel.id,
+        auteur: `${admin.email} (rétablissement)`,
+        adresseAvant: actuel.adresse,
+        codePostalAvant: actuel.codePostal,
+        villeAvant: actuel.ville,
+        latitudeAvant: actuel.latitude,
+        longitudeAvant: actuel.longitude,
+        adresseApres: trace.adresseAvant,
+        codePostalApres: trace.codePostalAvant,
+        villeApres: trace.villeAvant,
+      },
+    }),
+  ]);
+
+  revalidatePath("/admin/centres");
+  revalidatePath(`/admin/organismes/${actuel.organismeId}`);
   revalidatePath("/formations");
   revalidatePath("/organismes");
   revalidatePath("/");

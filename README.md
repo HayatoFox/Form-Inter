@@ -173,6 +173,9 @@ requête arrive en HTTPS ; derrière un reverse proxy TLS qui ne pose pas
 sur le LAN, laisser à `0`.
 
 Les identifiants sont dans `.env` et réaffichables avec `./deploy.sh secrets`.
+Hors Docker, `npm run dev` rappelle l'identifiant à chaque démarrage ; le mot
+de passe n'est stocké que haché, donc non récupérable — `npm run
+admin:motdepasse` en pose un nouveau et l'affiche.
 
 ### Mise à jour quotidienne
 

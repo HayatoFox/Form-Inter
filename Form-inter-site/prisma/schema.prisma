@@ -51,9 +51,10 @@ model Centre {
   geoLibelle String?
   geoLe      DateTime?
 
-  organisme   Organisme @relation(fields: [organismeId], references: [id], onDelete: Cascade)
-  organismeId String
-  sessions    Session[]
+  organisme     Organisme            @relation(fields: [organismeId], references: [id], onDelete: Cascade)
+  organismeId   String
+  sessions      Session[]
+  modifications ModificationCentre[]
 
   @@unique([organismeId, nom])
   @@index([ville])
@@ -187,4 +188,34 @@ model SyncRun {
   message          String?
 
   @@index([demarreLe])
+}
+
+/// Journal des corrections d'adresse d'un centre.
+///
+/// Corriger une adresse est ouvert à TOUT LE MONDE, sans compte : c'est un
+/// outil interne, et celui qui constate une erreur au téléphone doit pouvoir la
+/// réparer sans demander un accès. Une écriture sans auteur identifié demande
+/// en revanche une contrepartie : savoir ce qui a changé, et pouvoir revenir en
+/// arrière. C'est tout l'objet de cette table — les valeurs d'AVANT y sont
+/// conservées, donc un rétablissement est une simple recopie.
+model ModificationCentre {
+  id       String   @id @default(cuid())
+  centre   Centre   @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  centreId String
+  quand    DateTime @default(now())
+  /// "public" pour une correction anonyme, sinon l'adresse de l'administrateur.
+  auteur   String
+
+  adresseAvant    String?
+  codePostalAvant String?
+  villeAvant      String
+  latitudeAvant   Float?
+  longitudeAvant  Float?
+
+  adresseApres    String?
+  codePostalApres String?
+  villeApres      String
+
+  @@index([quand])
+  @@index([centreId])
 }

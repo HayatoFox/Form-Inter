@@ -8,6 +8,7 @@ import { formatDistance } from "@/lib/geo/distance";
 import { RAYON_MAX, RAYON_PAS } from "@/lib/geo/rayon";
 import { formatDateCourt } from "@/lib/dates";
 import { ChampAdresse, type Suggestion } from "@/components/ChampAdresse";
+import { corrigerAdresseCentre } from "@/app/actions/adresse-centre";
 import {
   ATTRIBUTION,
   COULEUR_CENTRE,
@@ -159,6 +160,10 @@ export function CarteRecherche({
   // ça ici ».
   const [centresDansRayon, setCentresDansRayon] = useState(0);
   const [choisi, setChoisi] = useState<string | null>(null);
+  // Incrémenté quand une adresse de centre vient d'être corrigée : la clé
+  // change, donc la recherche repart et le repère se déplace. Sans cela le
+  // centre resterait affiché à son ancienne position jusqu'au prochain filtre.
+  const [rechargements, setRechargements] = useState(0);
 
   // « En cours de mise à jour » n'est pas un état à poser : c'est un écart.
   // La clé décrit la recherche demandée, `cleAffichee` celle qui est à l'écran,
@@ -175,6 +180,7 @@ export function CarteRecherche({
         dateTo,
         passees,
         permanentes,
+        rechargements,
       ].join("|")
     : "";
   const [cleAffichee, setCleAffichee] = useState("");
@@ -309,6 +315,7 @@ export function CarteRecherche({
     passees,
     permanentes,
     rayonDessine,
+    rechargements,
   ]);
 
   // --- Dessin ---------------------------------------------------------------
@@ -678,6 +685,7 @@ export function CarteRecherche({
                     onBascule={() =>
                       choisirDepuisListe(choisi === centre.id ? null : centre.id)
                     }
+                    onCorrige={() => setRechargements((n) => n + 1)}
                   />
                 ))
               )}
@@ -702,10 +710,13 @@ function FicheCentre({
   centre,
   ouvert,
   onBascule,
+  onCorrige,
 }: {
   centre: CentreResultat;
   ouvert: boolean;
   onBascule: () => void;
+  /** Recharger la recherche : le repère a bougé. */
+  onCorrige: () => void;
 }) {
   return (
     <div
@@ -778,6 +789,131 @@ function FicheCentre({
           )}
         </ul>
       )}
+
+      {ouvert && <CorrectionAdresse centre={centre} onCorrige={onCorrige} />}
+    </div>
+  );
+}
+
+/**
+ * « L'adresse est fausse » — et on peut la réparer, sans compte.
+ *
+ * Le back office reste le lieu du travail de fond ; ceci est le geste de
+ * passage, fait par celui qui vient de constater l'erreur au téléphone. C'est
+ * pourquoi il est ici, sur la carte, et non derrière une authentification.
+ *
+ * L'enregistrement n'est possible qu'avec une adresse CHOISIE dans les
+ * suggestions : ses coordonnées sont alors connues, donc l'adresse existe et le
+ * repère se déplace tout de suite. Du texte libre serait invérifiable, et c'est
+ * précisément ce qu'on ne veut pas laisser écrire sans compte.
+ */
+function CorrectionAdresse({
+  centre,
+  onCorrige,
+}: {
+  centre: CentreResultat;
+  onCorrige: () => void;
+}) {
+  const [ouvert, setOuvert] = useState(false);
+  const [saisie, setSaisie] = useState(
+    centre.adresse
+      ? [centre.adresse, [centre.codePostal, centre.ville].filter(Boolean).join(" ")]
+          .filter(Boolean)
+          .join(", ")
+      : centre.ville
+  );
+  const [choix, setChoix] = useState<Suggestion | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function enregistrer() {
+    if (!choix?.latitude || !choix.longitude) return;
+    setEnvoi(true);
+    setMessage(null);
+    const resultat = await corrigerAdresseCentre({
+      centreId: centre.id,
+      adresse: choix.rue,
+      codePostal: choix.codePostal,
+      ville: choix.ville ?? centre.ville,
+      latitude: choix.latitude,
+      longitude: choix.longitude,
+      libelle: choix.libelle,
+    });
+    setEnvoi(false);
+    if (resultat.ok) {
+      setOuvert(false);
+      setChoix(null);
+      onCorrige();
+    } else {
+      setMessage(resultat.erreur);
+    }
+  }
+
+  if (!ouvert) {
+    return (
+      <div className="border-t border-zinc-200 px-4 py-2 dark:border-zinc-800">
+        <button
+          type="button"
+          onClick={() => setOuvert(true)}
+          className="text-xs text-zinc-500 hover:text-zinc-900 hover:underline dark:hover:text-zinc-100"
+        >
+          {centre.adresse
+            ? "Corriger l'adresse de ce centre"
+            : "Préciser l'adresse de ce centre"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
+      <p className="text-xs text-zinc-500">
+        Cherchez l&apos;adresse et choisissez-la dans la liste : le centre sera
+        déplacé sur la carte. Aucun compte n&apos;est nécessaire.
+      </p>
+      <div className="mt-2">
+        <ChampAdresse
+          valeur={saisie}
+          onChange={(texte) => {
+            setSaisie(texte);
+            // Saisie manuelle : plus de position vérifiée, donc plus
+            // d'enregistrement possible.
+            setChoix(null);
+          }}
+          onChoisir={(suggestion) => {
+            setSaisie(suggestion.libelle);
+            setChoix(suggestion);
+          }}
+          placeholder="12 rue de la Paix, 35000 Rennes"
+        />
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={enregistrer}
+          disabled={!choix?.latitude || envoi}
+          className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-40 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        >
+          {envoi ? "Enregistrement…" : "Enregistrer cette adresse"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOuvert(false);
+            setChoix(null);
+            setMessage(null);
+          }}
+          className="text-xs text-zinc-500 hover:underline"
+        >
+          Annuler
+        </button>
+        {!choix && !message && (
+          <span className="text-xs text-zinc-400">
+            Choisissez une adresse dans la liste pour pouvoir enregistrer.
+          </span>
+        )}
+        {message && <span className="text-xs text-red-600">{message}</span>}
+      </div>
     </div>
   );
 }

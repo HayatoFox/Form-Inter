@@ -43,8 +43,22 @@ est vide, et il **affiche les identifiants du back office** dans le terminal :
 ```
 
 L'amorçage est idempotent et ne touche jamais à des données existantes : sur
-une base déjà remplie, il se contente de rappeler où on en est. `ADMIN_EMAIL`
-et `ADMIN_PASSWORD_SEED` dans `.env` remplacent les valeurs par défaut.
+une base déjà remplie, il **rappelle l'identifiant à chaque démarrage**. Il
+l'avait un temps annoncé par un simple « compte existant (1) », sans l'adresse :
+qui avait fermé le terminal du premier lancement se retrouvait devant l'écran de
+connexion sans savoir quoi taper.
+
+Le mot de passe, lui, n'est pas rappelable : il n'est stocké que haché, et c'est
+bien ainsi. À défaut :
+
+```bash
+npm run admin:motdepasse                  # en tire un au sort et l'affiche
+npm run admin:motdepasse -- secret        # pose celui-là
+npm run admin:motdepasse -- secret a@b.fr # sur ce compte-là
+```
+
+`ADMIN_EMAIL` et `ADMIN_PASSWORD_SEED` dans `.env` remplacent les valeurs par
+défaut au premier amorçage.
 
 Le client Prisma est engendré dans `src/generated/`, **hors dépôt** : un clone
 neuf ne l'a pas. Le script `postinstall` s'en charge ; en cas de doute,
@@ -298,7 +312,31 @@ ville : c'est ce que les organismes publient dans leur calendrier. Un centre
 importé du backend est donc placé au centre de sa commune, ce qui suffit pour
 un rayon de trente kilomètres mais pas pour une convocation.
 
-Elle se saisit dans **Admin › Centres**, un écran qui liste tous les centres —
+**Tout le monde peut la corriger, sans compte.** Sur la carte d'accueil, chaque
+centre ouvert propose « Préciser / Corriger l'adresse de ce centre » : on la
+cherche avec la même aide à la saisie, on la choisit dans la liste, et le repère
+se déplace aussitôt. C'est un outil interne — celui qui s'aperçoit au téléphone
+que le centre de Rennes est en réalité à Cesson-Sévigné doit pouvoir le réparer
+sur-le-champ, pas demander un accès au back office.
+
+Trois contreparties, parce qu'une écriture anonyme sans filet n'est pas tenable
+(`src/app/actions/adresse-centre.ts`) :
+
+1. **seule une adresse choisie dans les suggestions est acceptée.** Le service
+   en rend les coordonnées ; les exiger garantit que l'adresse existe et
+   qu'elle est située. Du texte libre serait invérifiable, et c'est justement ce
+   qu'on ne veut pas laisser écrire sans compte — le bouton d'enregistrement
+   reste donc inactif tant qu'aucune suggestion n'a été retenue ;
+2. **tout est journalisé avec les valeurs d'avant** (`ModificationCentre`).
+   Admin › Centres affiche les quinze dernières corrections, leur auteur
+   (« public » ou l'adresse de l'administrateur) et un bouton **Rétablir
+   l'adresse d'avant** — le rétablissement est lui-même journalisé ;
+3. **un plafond de vingt corrections par heure et par adresse IP**, pour qu'un
+   script maladroit ne réécrive pas le catalogue en boucle.
+
+Le nom du centre, lui, n'est jamais modifiable par ce chemin.
+
+Le travail de fond se fait dans **Admin › Centres**, un écran qui liste tous les centres —
 c'est le centre qui porte l'adresse, pas l'organisme, et un siège social n'est
 pas un lieu de formation. Les centres absents de la carte remontent en tête,
 puisque ce sont eux qui restent à faire ; un filtre les isole. La fiche d'un

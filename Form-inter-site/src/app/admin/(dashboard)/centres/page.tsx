@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { FormulaireCentre } from "@/components/admin/FormulaireCentre";
-import { deleteCentre, updateCentre } from "../organismes/actions";
+import { formatDateLong } from "@/lib/dates";
+import { deleteCentre, retablirAdresse, updateCentre } from "../organismes/actions";
 
 /**
  * Les centres de formation, tous, sur un seul écran.
@@ -25,7 +26,7 @@ export default async function AdminCentresPage({
   const { organisme: organismeId, manquants } = await searchParams;
   const seulementManquants = manquants === "1";
 
-  const [organismes, centres, total, situes] = await Promise.all([
+  const [organismes, centres, total, situes, corrections] = await Promise.all([
     prisma.organisme.findMany({
       select: { id: true, nom: true },
       orderBy: { nom: "asc" },
@@ -40,6 +41,13 @@ export default async function AdminCentresPage({
     }),
     prisma.centre.count(),
     prisma.centre.count({ where: { NOT: { latitude: null } } }),
+    // Le journal des corrections. Il est la contrepartie de l'ouverture des
+    // corrections d'adresse à tout le monde : une erreur se voit, et s'annule.
+    prisma.modificationCentre.findMany({
+      include: { centre: { select: { nom: true, organisme: { select: { nom: true } } } } },
+      orderBy: { quand: "desc" },
+      take: 15,
+    }),
   ]);
 
   // Les centres absents de la carte remontent : c'est là qu'il y a à faire.
@@ -174,6 +182,58 @@ export default async function AdminCentresPage({
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Corriger une adresse est ouvert à tout le monde, sans compte : ce
+          journal est ce qui rend cette ouverture tenable. Il montre ce qui a
+          changé et permet de revenir en arrière d'un clic. */}
+      {corrections.length > 0 && (
+        <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="text-sm font-semibold">Corrections d&apos;adresse</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Les adresses peuvent être corrigées depuis la carte publique, sans
+            compte. Les {corrections.length} dernières :
+          </p>
+          <ul className="mt-3 flex flex-col gap-2 text-sm">
+            {corrections.map((c) => {
+              const retablir = retablirAdresse.bind(null, c.id);
+              const avant = [c.adresseAvant, c.codePostalAvant, c.villeAvant]
+                .filter(Boolean)
+                .join(" ");
+              const apres = [c.adresseApres, c.codePostalApres, c.villeApres]
+                .filter(Boolean)
+                .join(" ");
+              return (
+                <li
+                  key={c.id}
+                  className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800"
+                >
+                  <div>
+                    <span className="font-medium">
+                      {c.centre.organisme.nom} — {c.centre.nom}
+                    </span>
+                    <div className="text-xs text-zinc-500">
+                      <span className="line-through">{avant || "sans adresse"}</span>
+                      {" → "}
+                      <span className="text-zinc-800 dark:text-zinc-200">{apres}</span>
+                    </div>
+                    <div className="text-xs text-zinc-400">
+                      {formatDateLong(c.quand)} · {c.auteur}
+                    </div>
+                  </div>
+                  <form action={retablir}>
+                    <button
+                      type="submit"
+                      className="text-xs text-zinc-500 hover:text-zinc-900 hover:underline dark:hover:text-zinc-100"
+                    >
+                      Rétablir l&apos;adresse d&apos;avant
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </div>
   );

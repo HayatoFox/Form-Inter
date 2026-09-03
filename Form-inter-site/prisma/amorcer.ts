@@ -153,20 +153,35 @@ async function main() {
       return;
     }
 
-    const [centres, situes] = await Promise.all([
+    // Base déjà remplie ET compte déjà créé. C'est le cas de tous les jours,
+    // et c'est celui où l'encadré ne disait plus rien d'utile : « compte
+    // existant (1) », sans l'identifiant. Qui avait fermé le terminal du
+    // premier démarrage se retrouvait devant l'écran de connexion sans savoir
+    // quelle adresse taper.
+    //
+    // Le mot de passe, lui, ne peut pas être rappelé : il n'est stocké que
+    // haché, et c'est bien ainsi. À défaut, on donne la commande qui en pose
+    // un nouveau.
+    const [centres, situes, admins] = await Promise.all([
       prisma.centre.count(),
-      prisma.centre.count({ where: { geoStatut: "ok" } }),
+      prisma.centre.count({ where: { NOT: { latitude: null } } }),
+      prisma.adminUser.findMany({ select: { email: true }, orderBy: { email: "asc" } }),
     ]);
 
     const lignes = [
-      `${formations} formation(s), ${centres} centre(s) dont ${situes} situé(s).`,
+      `${formations} formation(s), ${centres} centre(s) dont ${situes} sur la carte.`,
       "",
-      `Back office : /admin — compte existant (${comptes}).`,
+      "Back office : /admin",
     ];
+    for (const admin of admins) lignes.push(`  identifiant  ${admin.email}`);
+    lignes.push("  mot de passe inchangé, et non récupérable (haché)");
+    lignes.push("");
+    lignes.push("Oublié ? npm run admin:motdepasse");
     if (situes < centres) {
       lignes.push("");
-      lignes.push("Centres sans coordonnées : Admin › Sources de données,");
-      lignes.push("bouton « Localiser les centres manquants ».");
+      lignes.push(`${centres - situes} centre(s) hors carte : Admin › Centres`);
+      lignes.push("pour saisir leur adresse, ou Sources de données pour");
+      lignes.push("lancer une localisation automatique.");
     }
     encadre(lignes);
   } finally {
