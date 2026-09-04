@@ -280,7 +280,7 @@ commande_up() {
 
     if [ "$(valeur_env SCRAPE_AT_STARTUP)" = "1" ]; then
         etape "Collecte initiale en cours"
-        info "Les cinq organismes sont scrapés en arrière-plan (~10 à 15 min)."
+        info "Les organismes sont scrapés en arrière-plan, de front (~5 min)."
         info "Suivre : ./deploy.sh logs scraper"
         info "Le site se remplira à la synchronisation suivante — ou tout de suite"
         info "une fois la collecte terminée, avec : ./deploy.sh sync"
@@ -307,7 +307,9 @@ commande_sync() {
 commande_scrape() {
     verifier_docker
     etape "Passage de collecte immédiat"
-    info "Compter 10 à 15 minutes."
+    # Les organismes étant collectés de front, un passage dure à peu près le
+    # temps du plus lent (Groupe ACN, ~300 fiches à 0,5 s), pas leur somme.
+    info "Compter ~5 minutes."
     $COMPOSE run --rm scraper scrape
 }
 
