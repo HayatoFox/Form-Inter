@@ -5,6 +5,8 @@ import { LogoutButton } from "@/components/admin/LogoutButton";
 const links = [
   { href: "/admin", label: "Tableau de bord" },
   { href: "/admin/organismes", label: "Organismes" },
+  // C'est le centre qui porte l'adresse, pas l'organisme : il a son écran.
+  { href: "/admin/centres", label: "Centres" },
   { href: "/admin/domaines", label: "Domaines" },
   { href: "/admin/formations", label: "Formations" },
   { href: "/admin/sources", label: "Sources de données" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export function LoginForm() {
@@ -31,8 +31,14 @@ export function LoginForm() {
     }
 
     const from = searchParams.get("from");
-    router.push(from && from.startsWith("/admin") ? from : "/admin");
+    const cible = from && from.startsWith("/admin") ? from : "/admin";
+
+    // On vide le cache de route AVANT de naviguer. Sans cela, `push` réutilise
+    // la réponse mise en cache quand on n'était pas connecté — c'est-à-dire la
+    // redirection vers cette page — et le bouton « Se connecter » renvoie à
+    // l'écran de connexion alors que le cookie est bien posé.
     router.refresh();
+    startTransition(() => router.push(cible));
   }
 
   return (

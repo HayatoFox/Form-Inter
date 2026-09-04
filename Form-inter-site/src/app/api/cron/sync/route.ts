@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { synchroniser } from "@/lib/backend/sync";
 import { revaliderCatalogue } from "@/lib/revalidation";
+import { localiserCentres } from "@/lib/geo/centres";
 
 // Déclenchement de la synchronisation depuis un ordonnanceur (cron système,
 // tâche planifiée de l'hébergeur…) :
@@ -32,11 +33,20 @@ async function traiter(request: NextRequest) {
   }
 
   const resultat = await synchroniser("cron");
-  if (resultat.statut === "ok") revaliderCatalogue();
 
-  return NextResponse.json(resultat, {
-    status: resultat.statut === "erreur" ? 502 : 200,
-  });
+  // Les centres apparus pendant la synchronisation sont localisés dans la
+  // foulée. C'est le bon moment : personne n'attend la réponse, et le
+  // géocodage est cadencé à une requête par seconde.
+  let geo = null;
+  if (resultat.statut === "ok") {
+    revaliderCatalogue();
+    geo = await localiserCentres({ lot: 100 });
+  }
+
+  return NextResponse.json(
+    { ...resultat, geo },
+    { status: resultat.statut === "erreur" ? 502 : 200 }
+  );
 }
 
 export async function GET(request: NextRequest) {

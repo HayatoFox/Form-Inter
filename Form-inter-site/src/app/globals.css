@@ -24,3 +24,37 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* --- Carte Leaflet ---------------------------------------------------------
+   Leaflet apporte le comportement ; le peu d'apparence qu'on reprend suit le
+   thème du site. Les règles sont préfixées par `.carte-site`, la classe de
+   notre conteneur : la feuille de Leaflet est importée depuis le composant,
+   donc injectée APRÈS celle du site, et à spécificité égale c'est elle qui
+   gagnerait — la bulle resterait blanche au milieu d'une page sombre. */
+
+.carte-site.leaflet-container {
+  background: #e4e4e7;
+  font: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  .carte-site.leaflet-container {
+    background: #27272a;
+  }
+  .carte-site .leaflet-popup-content-wrapper,
+  .carte-site .leaflet-popup-tip,
+  .carte-site .leaflet-bar a,
+  .carte-site .leaflet-control-attribution {
+    background: #18181b;
+    color: #e4e4e7;
+  }
+  .carte-site .leaflet-bar a {
+    border-color: #3f3f46;
+  }
+}
+
+.carte-site .leaflet-popup-content {
+  margin: 0.75rem 0.9rem;
+  font-size: 13px;
+  line-height: 1.45;
+}

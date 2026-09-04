@@ -16,8 +16,8 @@ RUN apt-get update \
 WORKDIR /app
 COPY scraper/ scraper/
 COPY webapp/ webapp/
-COPY run_scraper.sh docker-entrypoint.sh ./
-RUN chmod +x run_scraper.sh docker-entrypoint.sh
+COPY run_scraper.sh docker-entrypoint.sh notifier_site.py ./
+RUN chmod +x run_scraper.sh docker-entrypoint.sh notifier_site.py
 
 VOLUME ["/app/data", "/app/logs"]
 

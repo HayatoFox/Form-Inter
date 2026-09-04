@@ -119,7 +119,9 @@ ENTETE
     poser_defaut TZ                       "Europe/Paris"
 
     # Collecte
-    poser_defaut CRON_SCHEDULE            "0 6 * * *"
+    # Une collecte par nuit, à 2 h de Paris. Le site est prévenu à la fin du
+    # passage : c'est ce qui rend sa mise à jour quotidienne automatique.
+    poser_defaut CRON_SCHEDULE            "0 2 * * *"
     poser_defaut SCRAPE_AT_STARTUP        "1"
 
     # Site interne (webapp Python)
@@ -134,6 +136,10 @@ ENTETE
     poser_defaut SITE_ADMIN_PASSWORD      "$(aleatoire 12)"
     poser_defaut SESSION_SECRET           "$(aleatoire 32)"
     poser_defaut CRON_SECRET              "$(aleatoire 32)"
+
+    # Adresse que le scraper appelle en fin de collecte. Vider pour désactiver
+    # la mise à jour automatique du site.
+    poser_defaut SITE_SYNC_URL            "http://site:3000/api/cron/sync"
 
     # Emplacement des données sur l'hôte. Déplaçables hors du projet quand le
     # dossier n'est pas partageable avec Docker (voir diagnostiquer_montage).
@@ -274,7 +280,7 @@ commande_up() {
 
     if [ "$(valeur_env SCRAPE_AT_STARTUP)" = "1" ]; then
         etape "Collecte initiale en cours"
-        info "Les cinq organismes sont scrapés en arrière-plan (~10 à 15 min)."
+        info "Les organismes sont scrapés en arrière-plan, de front (~5 min)."
         info "Suivre : ./deploy.sh logs scraper"
         info "Le site se remplira à la synchronisation suivante — ou tout de suite"
         info "une fois la collecte terminée, avec : ./deploy.sh sync"
@@ -301,7 +307,9 @@ commande_sync() {
 commande_scrape() {
     verifier_docker
     etape "Passage de collecte immédiat"
-    info "Compter 10 à 15 minutes."
+    # Les organismes étant collectés de front, un passage dure à peu près le
+    # temps du plus lent (Groupe ACN, ~300 fiches à 0,5 s), pas leur somme.
+    info "Compter ~5 minutes."
     $COMPOSE run --rm scraper scrape
 }
 

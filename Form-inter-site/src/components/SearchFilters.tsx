@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CurseurRayon } from "@/components/CurseurRayon";
 
 export type SearchFiltersProps = {
   domaines: { id: string; nom: string }[];
@@ -11,6 +12,8 @@ export type SearchFiltersProps = {
     ville?: string;
     dateFrom?: string;
     dateTo?: string;
+    /** Rayon autour de la ville, en kilomètres. 0 = la ville seule. */
+    rayon?: number;
     passees?: boolean;
     permanentes?: boolean;
   };
@@ -26,7 +29,7 @@ export function SearchFilters({
     <form
       method="get"
       action="/formations"
-      className="grid grid-cols-1 gap-4 rounded-lg border border-zinc-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-6 lg:items-end dark:border-zinc-800 dark:bg-zinc-900"
+      className="grid grid-cols-1 gap-4 rounded-lg border border-zinc-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-7 lg:items-end dark:border-zinc-800 dark:bg-zinc-900"
     >
       {/* Distingue « formulaire soumis, cases décochées » de « premier
           affichage » : sans ce marqueur les cases reprendraient leur défaut. */}
@@ -84,6 +87,14 @@ export function SearchFilters({
         </select>
       </div>
 
+      {/* Le rayon vit collé à la ville, parce qu'il ne veut rien dire sans
+          elle : « à moins de 30 km » de quoi ? Sans lui, chercher « Rennes »
+          laisse de côté les centres de Cesson-Sévigné ou de Bruz, qui sont
+          pourtant à un quart d'heure. */}
+      <div>
+        <CurseurRayon valeur={current.rayon ?? 0} />
+      </div>
+
       <div>
         <label htmlFor="organisme" className="block text-xs font-medium text-zinc-500">
           Organisme
@@ -116,7 +127,7 @@ export function SearchFilters({
         />
       </div>
 
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-3 lg:col-span-6">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3 lg:col-span-7">
         <div>
           <label htmlFor="dateTo" className="block text-xs font-medium text-zinc-500">
             Au

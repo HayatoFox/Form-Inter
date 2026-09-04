@@ -4,6 +4,9 @@ import { lireConfigBackendPublique } from "@/lib/backend/config";
 import { derniersPassages } from "@/lib/backend/sync";
 import { BACKEND, MANUEL } from "@/lib/backend/types";
 import { LiaisonBackend } from "@/components/admin/LiaisonBackend";
+import { Localisation } from "@/components/admin/Localisation";
+import { etatLocalisation } from "@/lib/geo/centres";
+import { statistiquesCache } from "@/lib/geo/nominatim";
 
 const horodatage = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "short",
@@ -18,12 +21,15 @@ const STATUTS: Record<string, { libelle: string; classe: string }> = {
 };
 
 export default async function AdminSourcesPage() {
-  const [config, passages, backendCounts, manuelCounts] = await Promise.all([
-    lireConfigBackendPublique(),
-    derniersPassages(15),
-    prisma.session.count({ where: { source: BACKEND } }),
-    prisma.session.count({ where: { source: MANUEL } }),
-  ]);
+  const [config, passages, backendCounts, manuelCounts, etatGeo, cacheGeo] =
+    await Promise.all([
+      lireConfigBackendPublique(),
+      derniersPassages(15),
+      prisma.session.count({ where: { source: BACKEND } }),
+      prisma.session.count({ where: { source: MANUEL } }),
+      etatLocalisation(),
+      statistiquesCache(),
+    ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,6 +60,8 @@ export default async function AdminSourcesPage() {
       </div>
 
       <LiaisonBackend config={config} />
+
+      <Localisation etat={etatGeo} cache={cacheGeo} />
 
       <div className="rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <h2 className="text-base font-semibold">Import Excel / CSV</h2>

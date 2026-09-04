@@ -115,9 +115,9 @@ export function SessionsModal({
       <div className="mt-5 flex justify-end">
         <Link
           href={`/formations/${formation.id}`}
-          className="text-sm text-zinc-500 underline hover:text-zinc-900 dark:hover:text-zinc-100"
+          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
         >
-          Voir la fiche complète →
+          Fiche complète et carte des centres →
         </Link>
       </div>
     </Modal>

@@ -31,19 +31,64 @@ model Organisme {
 }
 
 model Centre {
-  id          String    @id @default(cuid())
-  nom         String
-  ville       String
-  codePostal  String?
-  adresse     String?
-  source      String    @default("MANUEL")
-  organisme   Organisme @relation(fields: [organismeId], references: [id], onDelete: Cascade)
-  organismeId String
-  sessions    Session[]
+  id         String  @id @default(cuid())
+  nom        String
+  ville      String
+  codePostal String?
+  adresse    String?
+  source     String  @default("MANUEL")
+
+  // Coordonnées du centre, résolues une fois puis conservées. L'adresse d'un
+  // centre de formation ne bouge quasiment jamais : rien ne justifie de
+  // réinterroger un service de géocodage à chaque affichage de carte.
+  latitude   Float?
+  longitude  Float?
+  // "attente" | "ok" | "introuvable" | "erreur". Distinguer « pas encore
+  // tenté » de « tenté sans succès » évite de repasser indéfiniment sur les
+  // mêmes adresses qui ne donnent rien.
+  geoStatut  String    @default("attente")
+  geoRequete String?
+  geoLibelle String?
+  geoLe      DateTime?
+
+  organisme     Organisme            @relation(fields: [organismeId], references: [id], onDelete: Cascade)
+  organismeId   String
+  sessions      Session[]
+  modifications ModificationCentre[]
 
   @@unique([organismeId, nom])
   @@index([ville])
   @@index([organismeId])
+  @@index([geoStatut])
+}
+
+/// Cache de géocodage.
+///
+/// Toute interrogation d'un service de géocodage passe par ici, dans les deux
+/// sens : on ne sort sur le réseau que si la requête normalisée est absente de
+/// cette table, et le résultat y est écrit avant d'être rendu.
+///
+/// Les échecs sont mémorisés aussi. Sans cela, une adresse mal saisie ressort
+/// sur le réseau à chaque affichage, et c'est exactement le genre de boucle qui
+/// fait bannir une adresse IP de Nominatim.
+model Geocodage {
+  /// Requête normalisée : minuscules, espaces réduits, accents conservés.
+  /// C'est la clé du cache, pas le texte tapé par l'utilisateur.
+  requete   String   @id
+  trouve    Boolean
+  latitude  Float?
+  longitude Float?
+  /// Libellé renvoyé par le service, affiché pour confirmer ce qui a été
+  /// compris (« 12 Rue de Paris, Cesson-Sévigné, Ille-et-Vilaine… »).
+  libelle   String?
+  /// "ville", "adresse" : sert à ne pas proposer un centre-ville quand on
+  /// attendait un numéro de rue.
+  genre     String?
+  source    String   @default("nominatim")
+  creeLe    DateTime @default(now())
+  utiliseLe DateTime @default(now())
+
+  @@index([utiliseLe])
 }
 
 model Domaine {
@@ -54,23 +99,23 @@ model Domaine {
 }
 
 model Formation {
-  id          String    @id @default(cuid())
-  intitule    String
-  description String?
-  dureeValeur Float?
-  dureeUnite  String?
+  id            String    @id @default(cuid())
+  intitule      String
+  description   String?
+  dureeValeur   Float?
+  dureeUnite    String?
   // Libellé de catégorie tel qu'affiché par le site source (nomenclatures
   // hétérogènes) ; `domaine` reste la classification commune.
   typeFormation String?
   urlProgramme  String?
-  source        String  @default("MANUEL")
-  organisme   Organisme @relation(fields: [organismeId], references: [id], onDelete: Cascade)
-  organismeId String
-  domaine     Domaine?  @relation(fields: [domaineId], references: [id])
-  domaineId   String?
-  sessions    Session[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  source        String    @default("MANUEL")
+  organisme     Organisme @relation(fields: [organismeId], references: [id], onDelete: Cascade)
+  organismeId   String
+  domaine       Domaine?  @relation(fields: [domaineId], references: [id])
+  domaineId     String?
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@unique([organismeId, intitule])
   @@index([organismeId])
@@ -78,30 +123,30 @@ model Formation {
 }
 
 model Session {
-  id          String    @id @default(cuid())
-  formation   Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
-  formationId String
-  centre      Centre?   @relation(fields: [centreId], references: [id])
-  centreId    String?
+  id           String    @id @default(cuid())
+  formation    Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  formationId  String
+  centre       Centre?   @relation(fields: [centreId], references: [id])
+  centreId     String?
   // NULL = session à entrée/sortie permanente (offre ouverte en continu),
   // cas remonté tel quel par le backend.
-  dateDebut   DateTime?
-  dateFin     DateTime?
-  permanente  Boolean   @default(false)
-  dureeJours  Float?
-  tarif       String?
-  remarque    String?
-  placesInfo  String?
+  dateDebut    DateTime?
+  dateFin      DateTime?
+  permanente   Boolean   @default(false)
+  dureeJours   Float?
+  tarif        String?
+  remarque     String?
+  placesInfo   String?
   urlProgramme String?
-  sourceUrl   String?
-  source      String    @default("MANUEL")
+  sourceUrl    String?
+  source       String    @default("MANUEL")
   // Clé naturelle de la session côté backend
   // (organisme|formation|ville|date_debut|date_fin) : les id AUTOINCREMENT du
   // backend ne sont pas stables si la base est régénérée.
-  sourceRef   String?   @unique
-  firstSeen   DateTime?
-  lastSeen    DateTime?
-  syncedAt    DateTime?
+  sourceRef    String?   @unique
+  firstSeen    DateTime?
+  lastSeen     DateTime?
+  syncedAt     DateTime?
 
   @@index([formationId])
   @@index([centreId])
@@ -143,4 +188,34 @@ model SyncRun {
   message          String?
 
   @@index([demarreLe])
+}
+
+/// Journal des corrections d'adresse d'un centre.
+///
+/// Corriger une adresse est ouvert à TOUT LE MONDE, sans compte : c'est un
+/// outil interne, et celui qui constate une erreur au téléphone doit pouvoir la
+/// réparer sans demander un accès. Une écriture sans auteur identifié demande
+/// en revanche une contrepartie : savoir ce qui a changé, et pouvoir revenir en
+/// arrière. C'est tout l'objet de cette table — les valeurs d'AVANT y sont
+/// conservées, donc un rétablissement est une simple recopie.
+model ModificationCentre {
+  id       String   @id @default(cuid())
+  centre   Centre   @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  centreId String
+  quand    DateTime @default(now())
+  /// "public" pour une correction anonyme, sinon l'adresse de l'administrateur.
+  auteur   String
+
+  adresseAvant    String?
+  codePostalAvant String?
+  villeAvant      String
+  latitudeAvant   Float?
+  longitudeAvant  Float?
+
+  adresseApres    String?
+  codePostalApres String?
+  villeApres      String
+
+  @@index([quand])
+  @@index([centreId])
 }

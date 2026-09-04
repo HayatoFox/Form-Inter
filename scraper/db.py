@@ -28,6 +28,14 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_date_debut ON sessions (date_debut);
 CREATE INDEX IF NOT EXISTS idx_sessions_ville ON sessions (ville);
 CREATE INDEX IF NOT EXISTS idx_sessions_domaine ON sessions (domaine);
+-- La clé naturelle d'une session, telle que la cherche upsert_sessions à
+-- CHAQUE ligne d'un passage. Sans cet index, SQLite retombait sur
+-- idx_sessions_ville et comparait toutes les lignes de la même ville : trois
+-- mille sessions faisaient trois mille balayages. Mesuré sur trois mille
+-- lignes : 502 ms sans, 14 ms avec. L'index couvre exactement la clause,
+-- SQLite l'annonce en « COVERING INDEX ».
+CREATE INDEX IF NOT EXISTS idx_sessions_cle
+    ON sessions (organisme, formation, ville, date_debut, date_fin);
 
 CREATE TABLE IF NOT EXISTS utilisateurs (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

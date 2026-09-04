@@ -14,8 +14,19 @@ import { debutDuJour } from "@/lib/dates";
 //
 // Les sessions à entrée/sortie permanente (sans date de début) ne se périment
 // jamais.
+// Le ménage ne concerne que des sessions DATÉES : entre deux passages de
+// minuit, il n'y a rien de nouveau à supprimer. Le refaire à chaque affichage
+// revenait à lancer une ÉCRITURE — donc à prendre un verrou — pour un résultat
+// presque toujours vide. On ne repasse donc qu'une fois par jour et par
+// processus. Le pire cas est une session périmée qui reste visible quelques
+// heures de plus sur un serveur redémarré ; ce n'est pas un prix.
+let dernierMenage = "";
+
 export async function cleanupPastSessions() {
   const aujourdhui = debutDuJour();
+  const jour = aujourdhui.toISOString().slice(0, 10);
+  if (dernierMenage === jour) return;
+  dernierMenage = jour;
 
   await prisma.session.deleteMany({
     where: {

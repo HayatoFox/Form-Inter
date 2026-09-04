@@ -3,9 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { SearchFilters } from "@/components/SearchFilters";
 import { FormationCard } from "@/components/FormationCard";
+import { CHAMPS_CARTE } from "@/lib/champs-formation";
 import { cleanupPastSessions } from "@/lib/session-cleanup";
 import { planifierSyncAuto } from "@/lib/backend/auto";
-import { debutDuJour, parseDateISO } from "@/lib/dates";
+import { centresAutour, positionVille } from "@/lib/geo/centres";
+import { normaliserRayon } from "@/lib/geo/rayon";
+import {
+  construireFiltres,
+  filtreExplicite,
+  lireCriteres,
+  parametresRecherche,
+  type ParamsRecherche,
+} from "@/lib/recherche";
 
 // Le catalogue bouge à chaque synchronisation, et la page nettoie les sessions
 // manuelles périmées à l'affichage : rien à préparer au build — où il n'y a de
@@ -16,18 +25,10 @@ const PAGE_SIZE = 20;
 
 const nombre = new Intl.NumberFormat("fr-FR");
 
-type SearchParams = {
-  q?: string;
-  domaine?: string;
+type SearchParams = ParamsRecherche & {
   ville?: string;
-  organisme?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  passees?: string;
-  permanentes?: string;
+  rayon?: string;
   page?: string;
-  /** Marqueur de formulaire soumis : sans lui, les cases prennent leur défaut. */
-  f?: string;
 };
 
 export default async function FormationsPage({
@@ -41,66 +42,43 @@ export default async function FormationsPage({
   await planifierSyncAuto();
 
   const params = await searchParams;
-  const q = params.q?.trim() || undefined;
-  const domaineId = params.domaine || undefined;
+  const criteres = lireCriteres(params);
   const ville = params.ville || undefined;
-  const organismeId = params.organisme || undefined;
-  const dateFrom = params.dateFrom || undefined;
-  const dateTo = params.dateTo || undefined;
-  const soumis = params.f === "1";
-  const passees = soumis && params.passees === "1";
-  const permanentes = soumis ? params.permanentes === "1" : true;
+  // Rayon autour de la ville. Sans ville, il ne désigne rien : on l'ignore
+  // plutôt que de deviner un centre.
+  const rayonActif = ville ? normaliserRayon(params.rayon) : 0;
   const page = Math.max(1, Number(params.page) || 1);
 
-  const aujourdhui = debutDuJour();
-
-  // Contraintes portant sur les sessions datées. Les sessions à entrée/sortie
-  // permanente (dateDebut nulle) n'y sont pas soumises : elles sont incluses ou
-  // exclues en bloc.
-  const contraintesDatees: Prisma.SessionWhereInput[] = [];
-  if (!passees) {
-    contraintesDatees.push({
-      OR: [
-        { dateFin: { gte: aujourdhui } },
-        { dateFin: null, dateDebut: { gte: aujourdhui } },
-      ],
-    });
-  }
-  const borneDu = parseDateISO(dateFrom);
-  const borneAu = parseDateISO(dateTo);
-  if (borneDu) contraintesDatees.push({ dateDebut: { gte: borneDu } });
-  if (borneAu) contraintesDatees.push({ dateDebut: { lte: borneAu } });
-
-  const conditionsSession: Prisma.SessionWhereInput[] = [];
-  if (ville) conditionsSession.push({ centre: { ville: { contains: ville } } });
-
-  if (contraintesDatees.length > 0) {
-    const datees: Prisma.SessionWhereInput = {
-      AND: [{ dateDebut: { not: null } }, ...contraintesDatees],
-    };
-    conditionsSession.push(
-      permanentes ? { OR: [{ dateDebut: null }, datees] } : datees
-    );
-  } else if (!permanentes) {
-    conditionsSession.push({ dateDebut: { not: null } });
+  // « Rennes » sans rayon ne sort que Rennes, et laisse de côté les centres de
+  // Cesson-Sévigné ou de Bruz qui sont à un quart d'heure. Avec un rayon, on
+  // résout la position de la ville — depuis un centre déjà localisé neuf fois
+  // sur dix, donc sans appel réseau — puis on liste les centres du disque. Le
+  // filtre porte ensuite sur des identifiants : la base ne fait aucune
+  // trigonométrie, et OpenStreetMap n'est pas sollicité.
+  let restrictionLieu: Prisma.SessionWhereInput | undefined;
+  if (ville && rayonActif > 0) {
+    const point = await positionVille(ville);
+    restrictionLieu = point
+      ? {
+          centreId: {
+            in: (await centresAutour(point, rayonActif, { limite: 500 })).map(
+              (c) => c.id
+            ),
+          },
+        }
+      : // Ville impossible à situer : on retombe sur l'égalité de nom plutôt
+        // que de rendre un catalogue vide sans explication.
+        { centre: { ville: { contains: ville } } };
+  } else if (ville) {
+    restrictionLieu = { centre: { ville: { contains: ville } } };
   }
 
-  const sessionFilter: Prisma.SessionWhereInput | undefined =
-    conditionsSession.length > 0 ? { AND: conditionsSession } : undefined;
+  const { sessionFilter, formationFilter: where } = construireFiltres(
+    criteres,
+    restrictionLieu
+  );
 
-  // Les cartes ne parlent de « sessions correspondantes » que si le visiteur a
-  // lui-même restreint la recherche : la borne « à venir » posée par défaut
-  // n'est pas un filtre de sa part.
-  const filtreExplicite = Boolean(ville || dateFrom || dateTo || soumis);
-
-  const where: Prisma.FormationWhereInput = {
-    ...(domaineId && { domaineId }),
-    ...(organismeId && { organismeId }),
-    ...(q && {
-      OR: [{ intitule: { contains: q } }, { description: { contains: q } }],
-    }),
-    ...(sessionFilter && { sessions: { some: sessionFilter } }),
-  };
+  const explicite = filtreExplicite(criteres, { ...params, ville });
 
   const [
     domaines,
@@ -123,14 +101,16 @@ export default async function FormationsPage({
     // évite de croire à des données manquantes en comparant avec le site de
     // veille, qui compte des sessions.
     prisma.session.count({ where: { ...sessionFilter, formation: where } }),
+    // Tout ce qu'on ramène ici part dans la page pour l'hydratation du
+    // composant client : ramener l'objet entier coûtait 451 Ko de HTML pour
+    // vingt cartes. `CHAMPS_CARTE` est la liste exacte des champs affichés.
     prisma.formation.findMany({
       where,
-      include: {
-        organisme: true,
-        domaine: true,
+      select: {
+        ...CHAMPS_CARTE,
         sessions: {
+          ...CHAMPS_CARTE.sessions,
           where: sessionFilter,
-          include: { centre: true },
           orderBy: { dateDebut: { sort: "asc", nulls: "last" } },
         },
       },
@@ -144,31 +124,38 @@ export default async function FormationsPage({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   function pageHref(p: number) {
-    const sp = new URLSearchParams();
-    if (q) sp.set("q", q);
-    if (domaineId) sp.set("domaine", domaineId);
-    if (ville) sp.set("ville", ville);
-    if (organismeId) sp.set("organisme", organismeId);
-    if (dateFrom) sp.set("dateFrom", dateFrom);
-    if (dateTo) sp.set("dateTo", dateTo);
-    sp.set("f", "1");
-    if (passees) sp.set("passees", "1");
-    if (permanentes) sp.set("permanentes", "1");
-    sp.set("page", String(p));
+    const sp = parametresRecherche(criteres, {
+      ville,
+      rayon: ville && rayonActif ? rayonActif : undefined,
+      page: p,
+    });
     return `/formations?${sp.toString()}`;
   }
 
+  // Les mêmes critères, portés vers la carte — qui est l'accueil du site.
+  // Passer d'une vue à l'autre ne doit pas obliger à ressaisir sa recherche.
+  const versCarte = `/?${parametresRecherche(criteres, { adresse: ville }).toString()}`;
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Formations</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          {nombre.format(total)} formation{total > 1 ? "s" : ""} trouvée
-          {total > 1 ? "s" : ""}
-          {" · "}
-          {nombre.format(totalSessions)} session
-          {totalSessions > 1 ? "s" : ""} au total
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Formations</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            {nombre.format(total)} formation{total > 1 ? "s" : ""} trouvée
+            {total > 1 ? "s" : ""}
+            {" · "}
+            {nombre.format(totalSessions)} session
+            {totalSessions > 1 ? "s" : ""} au total
+          </p>
+        </div>
+        {/* La même recherche, vue depuis la carte. Les critères suivent. */}
+        <Link
+          href={versCarte}
+          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          Voir sur la carte →
+        </Link>
       </div>
 
       <SearchFilters
@@ -176,14 +163,15 @@ export default async function FormationsPage({
         organismes={organismes}
         villes={villes}
         current={{
-          q,
-          domaine: domaineId,
+          q: criteres.q,
+          domaine: criteres.domaineId,
           ville,
-          organisme: organismeId,
-          dateFrom,
-          dateTo,
-          passees,
-          permanentes,
+          rayon: rayonActif,
+          organisme: criteres.organismeId,
+          dateFrom: criteres.dateFrom,
+          dateTo: criteres.dateTo,
+          passees: criteres.passees,
+          permanentes: criteres.permanentes,
         }}
       />
 
@@ -197,7 +185,7 @@ export default async function FormationsPage({
             <FormationCard
               key={f.id}
               formation={f}
-              sessionsFiltered={filtreExplicite}
+              sessionsFiltered={explicite}
             />
           ))}
         </div>

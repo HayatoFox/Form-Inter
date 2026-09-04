@@ -64,9 +64,12 @@ export default async function OrganismeDetailPage({
                 className="rounded-md border border-zinc-200 px-4 py-2 text-sm dark:border-zinc-800"
               >
                 <div className="font-medium">{c.nom}</div>
+                {c.adresse && (
+                  <div className="text-zinc-600 dark:text-zinc-400">{c.adresse}</div>
+                )}
                 <div className="text-zinc-500">
+                  {c.codePostal ? `${c.codePostal} ` : ""}
                   {c.ville}
-                  {c.codePostal ? ` (${c.codePostal})` : ""}
                 </div>
               </li>
             ))}

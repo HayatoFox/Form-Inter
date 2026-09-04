@@ -9,10 +9,18 @@ services:
     restart: unless-stopped
     environment:
       TZ: "${TZ:-Europe/Paris}"
-      # Planification cron (défaut : tous les jours à 6 h)
-      CRON_SCHEDULE: "${CRON_SCHEDULE:-0 6 * * *}"
+      # Planification cron (défaut : tous les jours à 2 h, heure de Paris)
+      CRON_SCHEDULE: "${CRON_SCHEDULE:-0 2 * * *}"
       # Mettre à 0 pour ne pas scraper au démarrage du conteneur
       SCRAPE_AT_STARTUP: "${SCRAPE_AT_STARTUP:-1}"
+
+      # À la fin de chaque passage, le scraper demande au site de rapatrier ce
+      # qu'il vient de collecter. C'est ce qui rend la mise à jour quotidienne
+      # automatique : sans cet appel, le site n'apprend la nouvelle qu'à la
+      # première visite. Vider SITE_SYNC_URL désactive la notification (le
+      # scraper reste utilisable seul, sans site en face).
+      SITE_SYNC_URL: "${SITE_SYNC_URL:-http://site:3000/api/cron/sync}"
+      CRON_SECRET: "${CRON_SECRET:-}"
     volumes:
       # La BDD SQLite reste accessible sur l'hôte. DATA_DIR/LOGS_DIR permettent
       # de sortir les données d'un dossier que Docker n'a pas le droit de lire

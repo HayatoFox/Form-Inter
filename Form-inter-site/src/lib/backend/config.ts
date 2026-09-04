@@ -57,11 +57,33 @@ function entier(valeur: string | undefined, defaut: number): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : defaut;
 }
 
+/**
+ * Les réglages tiennent en sept lignes et ne changent qu'à la main, depuis
+ * Admin › Sources de données. Les relire à chaque rendu de page — ce qui était
+ * le cas, `planifierSyncAuto()` étant appelé par l'accueil et par la liste —
+ * revenait à une requête de plus sur le chemin de TOUTE réponse. On les garde
+ * donc en mémoire, et l'écriture invalide le cache elle-même : la valeur est
+ * juste dès la soumission du formulaire, pas au bout d'un délai.
+ *
+ * Le cache est par processus : deux instances derrière un répartiteur de
+ * charge peuvent diverger le temps d'un délai. Le site tourne sur une machine,
+ * en un exemplaire, et un mode de liaison qui met une minute à se propager
+ * n'aurait de toute façon aucune conséquence.
+ */
+let cacheReglages: Record<string, string> | null = null;
+
+export function oublierConfigBackend(): void {
+  cacheReglages = null;
+}
+
 async function lireReglages(): Promise<Record<string, string>> {
+  if (cacheReglages) return cacheReglages;
   const lignes = await prisma.reglage.findMany({
     where: { cle: { startsWith: PREFIXE } },
+    select: { cle: true, valeur: true },
   });
-  return Object.fromEntries(lignes.map((r) => [r.cle, r.valeur]));
+  cacheReglages = Object.fromEntries(lignes.map((r) => [r.cle, r.valeur]));
+  return cacheReglages;
 }
 
 export async function lireConfigBackend(): Promise<ConfigBackend> {
@@ -159,6 +181,10 @@ export async function ecrireConfigBackend(
   if (supprimees.length > 0) {
     await prisma.reglage.deleteMany({ where: { cle: { in: supprimees } } });
   }
+  // Le cache de lecture doit tomber ICI, et pas au bout d'un délai : sinon
+  // l'écran qui vient d'enregistrer un changement de mode le réafficherait
+  // avec l'ancienne valeur.
+  oublierConfigBackend();
 }
 
 export function libelleMode(mode: ModeBackend): string {

@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { lireConfigBackend } from "@/lib/backend/config";
 import { dernierPassageReussi, synchroniser } from "@/lib/backend/sync";
 import { revaliderCatalogue } from "@/lib/revalidation";
+import { localiserCentres } from "@/lib/geo/centres";
 
 // Rafraîchissement automatique : le site n'a pas de tâche planifiée en propre,
 // la synchronisation part donc à la visite d'une page de consultation quand le
@@ -38,6 +39,10 @@ export async function planifierSyncAuto(): Promise<void> {
       console.error("[sync auto]", resultat.message);
     } else if (resultat.statut === "ok") {
       revaliderCatalogue();
+      // Un tout petit lot : on est après la réponse, mais le géocodage tient
+      // la cadence d'une requête par seconde et un visiteur n'a pas à financer
+      // le rattrapage complet. Le passage de nuit s'en charge pour de bon.
+      await localiserCentres({ lot: 10 });
     }
   });
 }
