@@ -15,9 +15,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from . import db, domaines
-from .sites import acn, cepim, pilocap, temis, voltwork
+from .sites import acn, cepim, forma_so, interfora, pilocap, si_groupe, temis, voltwork
 
-SCRAPERS = [temis, pilocap, cepim, acn, voltwork]
+SCRAPERS = [temis, pilocap, cepim, acn, voltwork, interfora, si_groupe, forma_so]
 
 
 def assainir(sessions: list[dict]) -> list[dict]:
@@ -64,12 +64,12 @@ def main() -> int:
     erreurs = 0
     print(f"--- Scrape du {datetime.now():%Y-%m-%d %H:%M} ({args.declencheur}) ---")
 
-    # Les cinq organismes sont collectés DE FRONT, et non l'un après l'autre.
+    # Les organismes sont collectés DE FRONT, et non l'un après l'autre.
     #
     # L'essentiel du temps d'un passage n'est pas du calcul : c'est l'attente —
     # la latence des sites, et surtout le délai de politesse que chaque scraper
     # respecte entre deux pages (0,5 à 1 s, sur deux à trois cents pages pour
-    # les plus gros). Ces attentes s'additionnaient alors qu'elles visent CINQ
+    # les plus gros). Ces attentes s'additionnaient alors qu'elles visent des
     # SITES DIFFÉRENTS. Le passage dure maintenant à peu près le temps du plus
     # lent, au lieu de la somme.
     #

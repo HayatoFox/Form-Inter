@@ -311,11 +311,11 @@ parce que cron ne transmet pas l'environnement du conteneur.
 Deux changements ont raccourci la collecte, sans solliciter aucun site plus
 durement qu'avant.
 
-**Les cinq organismes sont collectés de front** (`scraper/main.py`). L'essentiel
+**Les organismes sont collectés de front** (`scraper/main.py`). L'essentiel
 du temps d'un passage n'est pas du calcul : c'est l'attente — la latence des
 sites, et surtout le délai de politesse que chaque scraper respecte entre deux
 pages (0,5 à 1 s, sur deux à trois cents pages pour les plus gros). Ces
-attentes s'additionnaient alors qu'elles visent **cinq sites différents**. Un
+attentes s'additionnaient alors qu'elles visent **des sites différents**. Un
 passage dure maintenant à peu près le temps du plus lent, au lieu de la somme :
 mesuré sur cinq scrapers simulés d'une seconde, 5 s → 1,07 s.
 
@@ -340,7 +340,7 @@ Table `sessions` — une ligne par session (organisme + formation + ville + date
 | `organisme`      | ex. « TEMIS Formation »                              |
 | `formation`      | intitulé de la formation                             |
 | `type_formation` | catégorie **d'origine du site** (libellés hétérogènes) |
-| `domaine`        | classification **commune** (14 domaines : Secourisme, CACES / Conduite d'engins, Habilitations électriques… — règles dans `scraper/domaines.py`) |
+| `domaine`        | classification **commune** (17 domaines : Secourisme, CACES / Conduite d'engins, Habilitations électriques… — règles dans `scraper/domaines.py`) |
 | `ville`          | ville de l'antenne/du centre                         |
 | `date_debut`     | ISO `AAAA-MM-JJ`                                     |
 | `date_fin`       | ISO `AAAA-MM-JJ`                                     |
@@ -452,3 +452,93 @@ sur certaines pages de centres. Le scraper balaie les deux sitemaps
   correspondance est sans ambiguïté (sinon NULL plutôt qu'un tarif faux —
   cas des lignes « Initiale & Recyclage » à deux prix).
 - Passage ~3 min (sitemaps complets à 0,5 s/page).
+
+### INTERFORA IFAIP (`scraper/sites/interfora.py`)
+
+Centre chimie et procédés de Saint-Fons (69) : FSSEE, ISM-ATEX, port de
+l'ARI, habilitations électriques, SST, AIPR, CATEC. **836 sessions en deux
+requêtes** (~6 s), du jour à décembre 2027.
+
+Le planning est un calendrier « Booking Activities » (WordPress /
+FullCalendar) : la page ne contient **aucune** session (`"events":[]`,
+`"auto_load":0`), le calendrier va chercher ses dates lui-même. Le scraper
+refait ce que ferait le navigateur, sans exécuter de JavaScript : il extrait
+de la page les deux littéraux JSON de configuration, puis appelle
+`bookactiGetBookingSystemDataByInterval` sur `admin-ajax.php` — que
+`robots.txt` autorise nommément, alors qu'il interdit le reste de
+`/wp-admin/`. Ni nonce, ni cookie : la réponse est celle d'un visiteur
+anonyme, et elle rend les occurrences déjà dépliées (récurrences, fermeture
+estivale, passé rogné) en un seul appel.
+
+- Les deux littéraux sont découpés au `json.JSONDecoder().raw_decode()` et
+  non à l'expression régulière comme ailleurs dans le dépôt : leurs
+  accolades imbriquées piègent tout motif non gourmand.
+- `tarif` à NULL : les 32 fiches `/form/` l'affichent, mais rien ne permet de
+  les rattacher aux activités sans risque de se tromper de prix (un même PDF
+  sert deux fiches à 140 € et 280 € ; trois formations distinctes portent le
+  même titre). Un tarif faux vaut moins que pas de tarif.
+- `disponibilite` à NULL : `is_available` est vrai pour les 836 sessions, sur
+  des totaux conventionnels (1000 places pour 536 d'entre elles, 10000 pour
+  296) — « 995 places sur 1000 » serait une donnée fausse.
+
+### SI Groupe (`scraper/sites/si_groupe.py`)
+
+Sécurité incendie et sécurité privée (SSIAP, TFP APS, SST, habilitations
+électriques…), cinq centres : Évry-Courcouronnes 245, Paris 14e 109,
+Strasbourg 52, Saint-Grégoire 51, Mulhouse 50. **507 sessions en une
+requête** (~3 s).
+
+Même greffon « wpulivesearch » que CEPIM : `/planning/` construit ses cartes
+en JavaScript, mais tout le calendrier voyage déjà dans le HTML brut en
+littéral JSON. Le filtrage par centre et le bouton « Afficher plus »
+travaillent côté client — pas de pagination serveur à rejouer (l'API REST du
+site, elle, répond 401).
+
+- Le planning ne donne que le nom commercial du centre (« SI-GROUPE
+  PARIS ») : la ville réelle vient de la page publique des centres.
+- Le champ `name` du JSON départage les variantes que le titre `<h3>`
+  confond (« MAC APS … avec SST » / « … sans SST »).
+- `tarif`, `disponibilite` et la durée pédagogique restent à NULL : le site
+  ne les publie nulle part (devis, bouton « Pré-réserver » identique
+  partout).
+
+### FORMA-SO (`scraper/sites/forma_so.py`)
+
+Lons (64) près de Pau, antenne à Ustaritz, plus trois lieux partenaires
+(Tarbes, Lescar, Saint-Paul-lès-Dax) : CACES 387, travail en hauteur 128,
+AIPR 90, habilitations électriques 34, SST 33. **679 sessions en trois
+requêtes** (~25 s).
+
+Le catalogue est une application Angular adossée à la plateforme GESCOF.
+Deux constats ont écarté le parsing HTML :
+
+- **le HTML ne publie que les trois prochaines sessions par fiche**
+  (`nbElements=3` figé dans le composant, aucun paramètre d'URL ne pagine) :
+  un scraper HTML ramènerait ~160 lignes sur 679, sans que rien ne signale le
+  manque ;
+- **le rendu serveur décale les dates d'un jour** (bug de fuseau) ; seul le
+  JSON est juste, un parseur du texte visible produirait des centaines de
+  dates fausses sans lever d'erreur.
+
+Le scraper s'y prend donc exactement comme le navigateur d'un visiteur : il
+demande le jeton anonyme que la plateforme délivre à qui présente l'origine
+du site, puis lit les sessions publiées. C'est aussi beaucoup plus léger pour
+leur serveur — ~3 Mo au total contre les ~35 Mo de 51 pages qu'il faudrait
+recharger pour un résultat quatre fois moins complet.
+
+- Contrepartie assumée : ce contrat d'API n'est pas documenté. Chaque étape
+  lève une `RuntimeError` explicite plutôt que de rendre une liste vide — un
+  passage qui échoue bruyamment se répare, un passage qui rend zéro session
+  en silence fait disparaître l'organisme du catalogue sans que personne ne
+  le voie.
+- **Une ligne par fiche, pas par journée** : l'API rend 679 lignes pour 354
+  codes de session, une même journée portant parfois plusieurs fiches. Le
+  28 septembre à Lons, une seule session AIPR couvre les trois profils du
+  référentiel (Concepteur, Encadrant, Opérateur), qui sont trois formations
+  distinctes. Quelqu'un qui cherche « AIPR Encadrant » doit trouver cette
+  date ; les lignes qui partagent une journée le disent en `remarque`.
+- `tarif` renseigné sur 597 lignes, `disponibilite` = l'état publié
+  (Prévisionnelle 587, Confirmée 92).
+- Les libellés du site sont repris tels quels, coquilles comprises
+  (« Autorisationd'intervention à proximité des réseaux ») : `type_formation`
+  conserve toujours le texte d'origine.
