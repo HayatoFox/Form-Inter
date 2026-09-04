@@ -11,7 +11,7 @@ import argparse
 import sys
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 from . import db, domaines
@@ -75,29 +75,46 @@ def main() -> int:
     #
     # Aucun site n'est sollicité plus durement qu'avant : chaque scraper garde
     # son propre délai entre ses propres pages, et un seul fil s'occupe de lui.
-    with ThreadPoolExecutor(max_workers=len(SCRAPERS)) as pool:
-        rendus = list(pool.map(_collecter, SCRAPERS))
+    #
+    # `as_completed` et non `pool.map` : map ne rend la main qu'une fois TOUS
+    # les organismes terminés, et le passage — plusieurs minutes — restait
+    # alors muet du début à la fin, ce qui ressemble à s'y méprendre à un
+    # blocage dans `docker logs`. Ici chaque organisme s'annonce dès qu'il
+    # atterrit, et si l'un ne rend jamais la main on voit immédiatement lequel :
+    # c'est celui qui manque à l'appel.
+    attendus = [m.ORGANISME for m in SCRAPERS]
+    print(f"{len(attendus)} organismes collectés de front : {', '.join(attendus)}")
+    print("(chacun s'affiche dès qu'il a terminé, pas dans cet ordre)", flush=True)
 
-    # Les écritures, elles, restent sérielles et dans le fil principal.
-    for rendu in rendus:
-        nom = rendu["module"].ORGANISME
-        if rendu["erreur"] is None:
-            sessions = rendu["sessions"]
-            db.upsert_sessions(conn, sessions)
-            villes = len({s["ville"] for s in sessions})
-            print(f"[OK] {nom} : {len(sessions)} sessions ({villes} villes)")
-            statut, nb, message = "ok", len(sessions), None
-        else:
-            erreurs += 1
-            print(f"[ERREUR] {nom} :\n{rendu['erreur']}", file=sys.stderr)
-            statut, nb, message = "erreur", None, rendu["erreur"][-2000:]
-        with conn:
-            conn.execute(
-                """INSERT INTO scrape_runs (organisme, demarre_le, duree_s,
-                                            nb_sessions, statut, message, declencheur)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (nom, rendu["demarre"], round(rendu["duree"], 1),
-                 nb, statut, message, args.declencheur))
+    with ThreadPoolExecutor(max_workers=len(SCRAPERS)) as pool:
+        futurs = [pool.submit(_collecter, module) for module in SCRAPERS]
+
+        # Les écritures, elles, restent sérielles et dans le fil principal :
+        # c'est ici, à la consommation, qu'on y revient.
+        for fini, futur in enumerate(as_completed(futurs), start=1):
+            rendu = futur.result()  # _collecter ne lève pas : il rend l'erreur
+            nom = rendu["module"].ORGANISME
+            reste = len(futurs) - fini
+            if rendu["erreur"] is None:
+                sessions = rendu["sessions"]
+                db.upsert_sessions(conn, sessions)
+                villes = len({s["ville"] for s in sessions})
+                print(f"[OK] {nom} : {len(sessions)} sessions ({villes} villes)"
+                      f" en {rendu['duree']:.0f} s — reste {reste}", flush=True)
+                statut, nb, message = "ok", len(sessions), None
+            else:
+                erreurs += 1
+                print(f"[ERREUR] {nom} :\n{rendu['erreur']}", file=sys.stderr,
+                      flush=True)
+                print(f"[ERREUR] {nom} — reste {reste}", flush=True)
+                statut, nb, message = "erreur", None, rendu["erreur"][-2000:]
+            with conn:
+                conn.execute(
+                    """INSERT INTO scrape_runs (organisme, demarre_le, duree_s,
+                                                nb_sessions, statut, message, declencheur)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (nom, rendu["demarre"], round(rendu["duree"], 1),
+                     nb, statut, message, args.declencheur))
 
     total = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
     print(f"Total en base : {total} sessions -> {db.DB_PATH}")
