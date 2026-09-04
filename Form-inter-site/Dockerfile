@@ -28,6 +28,17 @@ WORKDIR /app/site
 # `npm ci` installe aussi les devDependencies : la CLI Prisma (migrations),
 # tsx (le seed) et dotenv (lu par prisma.config.ts) servent au démarrage.
 COPY package.json package-lock.json ./
+
+# Le schéma AVANT `npm ci`, parce que le postinstall du paquet lance
+# `prisma generate` : sans schéma à cet instant, l'installation échoue
+# (« Could not find Prisma Schema »). Seul `schema.prisma` est copié ici, et
+# non tout `prisma/` : les scripts de seed voisins changent souvent, et ils
+# invalideraient le cache de la couche `npm ci` à chaque retouche.
+# `prisma generate` n'a besoin ni de prisma.config.ts ni d'une URL de
+# datasource — il ne se connecte pas — et retrouve le schéma à son
+# emplacement par défaut.
+COPY prisma/schema.prisma ./prisma/schema.prisma
+
 RUN npm ci --include=dev
 
 COPY . .
