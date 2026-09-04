@@ -306,6 +306,31 @@ n'est pas prévenu. Avec elles, il se met à jour dans la foulée — c'est le m
 mécanisme que sous Docker, où l'entrypoint les dépose dans `/app/.env-cron`
 parce que cron ne transmet pas l'environnement du conteneur.
 
+## Durée d'un passage
+
+Deux changements ont raccourci la collecte, sans solliciter aucun site plus
+durement qu'avant.
+
+**Les cinq organismes sont collectés de front** (`scraper/main.py`). L'essentiel
+du temps d'un passage n'est pas du calcul : c'est l'attente — la latence des
+sites, et surtout le délai de politesse que chaque scraper respecte entre deux
+pages (0,5 à 1 s, sur deux à trois cents pages pour les plus gros). Ces
+attentes s'additionnaient alors qu'elles visent **cinq sites différents**. Un
+passage dure maintenant à peu près le temps du plus lent, au lieu de la somme :
+mesuré sur cinq scrapers simulés d'une seconde, 5 s → 1,07 s.
+
+Chaque scraper garde son propre délai entre ses propres pages, et un seul fil
+s'occupe de lui : de leur point de vue, rien ne change. Les écritures SQLite,
+elles, restent sérielles et dans le fil principal — une connexion sqlite3 ne se
+partage pas entre fils, et on ne la partage pas.
+
+**`upsert_sessions` a enfin l'index de sa clé naturelle.** Il cherchait chaque
+session par `(organisme, formation, ville, date_debut, date_fin)`, sans index
+correspondant : SQLite retombait sur `idx_sessions_ville` et comparait toutes
+les lignes de la même ville, à chaque ligne. Mesuré sur trois mille sessions :
+502 ms sans, **14 ms avec**. L'index est créé par `connect()`, donc posé aussi
+sur les bases existantes au premier démarrage suivant.
+
 ## Schéma de la base
 
 Table `sessions` — une ligne par session (organisme + formation + ville + dates) :

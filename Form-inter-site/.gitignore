@@ -37,6 +37,13 @@ yarn-error.log*
 # database
 /dev.db
 /prisma/dev.db
+# Compagnons du mode WAL (voir src/lib/sqlite-reglages.ts) : SQLite les crée à
+# côté de la base et les efface à la fermeture propre. Ils n'ont rien à faire
+# dans le dépôt, et sans ces lignes ils apparaissent à chaque `git status`.
+/dev.db-wal
+/dev.db-shm
+/prisma/dev.db-wal
+/prisma/dev.db-shm
 
 # vercel
 .vercel

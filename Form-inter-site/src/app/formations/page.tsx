@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { SearchFilters } from "@/components/SearchFilters";
 import { FormationCard } from "@/components/FormationCard";
+import { CHAMPS_CARTE } from "@/lib/champs-formation";
 import { cleanupPastSessions } from "@/lib/session-cleanup";
 import { planifierSyncAuto } from "@/lib/backend/auto";
 import { centresAutour, positionVille } from "@/lib/geo/centres";
@@ -100,14 +101,16 @@ export default async function FormationsPage({
     // évite de croire à des données manquantes en comparant avec le site de
     // veille, qui compte des sessions.
     prisma.session.count({ where: { ...sessionFilter, formation: where } }),
+    // Tout ce qu'on ramène ici part dans la page pour l'hydratation du
+    // composant client : ramener l'objet entier coûtait 451 Ko de HTML pour
+    // vingt cartes. `CHAMPS_CARTE` est la liste exacte des champs affichés.
     prisma.formation.findMany({
       where,
-      include: {
-        organisme: true,
-        domaine: true,
+      select: {
+        ...CHAMPS_CARTE,
         sessions: {
+          ...CHAMPS_CARTE.sessions,
           where: sessionFilter,
-          include: { centre: true },
           orderBy: { dateDebut: { sort: "asc", nulls: "last" } },
         },
       },

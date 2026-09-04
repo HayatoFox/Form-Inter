@@ -382,6 +382,18 @@ async function appliquerLignes(lignes: LigneBackend[]): Promise<CompteRendu> {
   }
   compte.sessionsCreees = aCreer.length;
 
+  // Une mise à jour par session, et c'est volontaire. Chaque passage du
+  // scraper change la date de dernière vue de TOUTES les sessions : le lot
+  // fait facilement trois mille lignes. On a donc mesuré, sur les 2976
+  // sessions du jeu réel :
+  //
+  //   avant, journal SQLite en mode « delete »  : 3933 ms
+  //   en WAL, une par une (ci-dessous)          :  625 ms
+  //   en WAL, groupées par 500 en transaction   :  663 ms
+  //
+  // Le groupement n'apporte RIEN une fois la base en WAL — Prisma envoie de
+  // toute façon une instruction par ligne — et il coûtait du code en plus. Le
+  // gain était ailleurs, dans les réglages SQLite (src/lib/sqlite-reglages.ts).
   for (const { id, voulue } of aMettreAJour) {
     await prisma.session.update({
       where: { id },

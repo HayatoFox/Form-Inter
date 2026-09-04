@@ -11,6 +11,7 @@ import argparse
 import sys
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from . import db, domaines
@@ -34,6 +35,26 @@ def assainir(sessions: list[dict]) -> list[dict]:
     return sessions
 
 
+def _collecter(module) -> dict:
+    """Un organisme, dans son propre fil. Ne touche PAS à la base.
+
+    Le fil ne fait que du réseau et du texte ; toute écriture SQLite reste dans
+    le fil principal, sur l'unique connexion. C'est ce qui rend la
+    parallélisation sûre sans rien changer à `db.py` : une connexion sqlite3
+    n'est pas partageable entre fils, et on ne la partage pas.
+    """
+    demarre = datetime.now().isoformat(timespec="seconds")
+    chrono = time.monotonic()
+    try:
+        sessions = assainir(module.scrape())
+        return {"module": module, "demarre": demarre, "sessions": sessions,
+                "duree": time.monotonic() - chrono, "erreur": None}
+    except Exception:
+        return {"module": module, "demarre": demarre, "sessions": None,
+                "duree": time.monotonic() - chrono,
+                "erreur": traceback.format_exc()}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--declencheur", choices=["cron", "manuel"], default="cron")
@@ -42,28 +63,42 @@ def main() -> int:
     conn = db.connect()
     erreurs = 0
     print(f"--- Scrape du {datetime.now():%Y-%m-%d %H:%M} ({args.declencheur}) ---")
-    for module in SCRAPERS:
-        nom = module.ORGANISME
-        demarre = datetime.now().isoformat(timespec="seconds")
-        chrono = time.monotonic()
-        try:
-            sessions = assainir(module.scrape())
+
+    # Les cinq organismes sont collectés DE FRONT, et non l'un après l'autre.
+    #
+    # L'essentiel du temps d'un passage n'est pas du calcul : c'est l'attente —
+    # la latence des sites, et surtout le délai de politesse que chaque scraper
+    # respecte entre deux pages (0,5 à 1 s, sur deux à trois cents pages pour
+    # les plus gros). Ces attentes s'additionnaient alors qu'elles visent CINQ
+    # SITES DIFFÉRENTS. Le passage dure maintenant à peu près le temps du plus
+    # lent, au lieu de la somme.
+    #
+    # Aucun site n'est sollicité plus durement qu'avant : chaque scraper garde
+    # son propre délai entre ses propres pages, et un seul fil s'occupe de lui.
+    with ThreadPoolExecutor(max_workers=len(SCRAPERS)) as pool:
+        rendus = list(pool.map(_collecter, SCRAPERS))
+
+    # Les écritures, elles, restent sérielles et dans le fil principal.
+    for rendu in rendus:
+        nom = rendu["module"].ORGANISME
+        if rendu["erreur"] is None:
+            sessions = rendu["sessions"]
             db.upsert_sessions(conn, sessions)
             villes = len({s["ville"] for s in sessions})
             print(f"[OK] {nom} : {len(sessions)} sessions ({villes} villes)")
             statut, nb, message = "ok", len(sessions), None
-        except Exception:
+        else:
             erreurs += 1
-            print(f"[ERREUR] {nom} :", file=sys.stderr)
-            traceback.print_exc()
-            statut, nb, message = "erreur", None, traceback.format_exc()[-2000:]
+            print(f"[ERREUR] {nom} :\n{rendu['erreur']}", file=sys.stderr)
+            statut, nb, message = "erreur", None, rendu["erreur"][-2000:]
         with conn:
             conn.execute(
                 """INSERT INTO scrape_runs (organisme, demarre_le, duree_s,
                                             nb_sessions, statut, message, declencheur)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (nom, demarre, round(time.monotonic() - chrono, 1),
+                (nom, rendu["demarre"], round(rendu["duree"], 1),
                  nb, statut, message, args.declencheur))
+
     total = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
     print(f"Total en base : {total} sessions -> {db.DB_PATH}")
     conn.close()

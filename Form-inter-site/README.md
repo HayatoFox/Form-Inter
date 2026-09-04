@@ -367,6 +367,57 @@ Quatre points de vigilance, tous tenus :
   C'est pourquoi la carte retient les centres qui *ont des coordonnées*, et non
   ceux dont le statut vaut `ok`.
 
+## Performance
+
+Le site paraissait lent. Les mesures ont désigné deux causes, et écarté celles
+qu'on soupçonnait d'abord — ni le volume (2 976 sessions, une base de 2,4 Mo),
+ni le rendu serveur (déjà sous 100 ms).
+
+**1. SQLite tournait dans sa configuration par défaut**, `journal_mode=delete`
+et `synchronous=FULL` : toute écriture prend un verrou EXCLUSIF qui bloque les
+lecteurs. Comme la synchronisation avec le backend écrit des milliers de lignes
+et qu'elle part à la visite d'une page, le site se figeait pendant qu'elle
+tournait. `src/lib/sqlite-reglages.ts` pose maintenant WAL et ses compagnons à
+l'ouverture de la connexion.
+
+| Mise à jour de 2 976 sessions | |
+|---|---|
+| avant (`delete` / `FULL`) | 3 933 ms, lecteurs bloqués |
+| après (WAL / `NORMAL`) | **625 ms**, lecteurs libres |
+
+Le module VÉRIFIE que WAL a bien été retenu et le dit dans le journal sinon :
+il réclame de la mémoire partagée, que certains montages ne fournissent pas
+(volume lié Docker sur macOS ou Windows, partage réseau). Dans ce cas, mettre
+la base sur un volume Docker nommé.
+
+**2. `/formations` envoyait 451 Ko de HTML pour vingt cartes.** La carte est un
+composant client : tout ce que la requête ramène est sérialisé dans la page
+pour l'hydratation, et la requête ramenait l'objet entier — chaque session
+traînait son centre complet (latitude, geoStatut, geoRequete, geoLibelle…) et
+ses propres sourceRef, firstSeen, syncedAt, jamais affichés.
+`src/lib/champs-formation.ts` liste les champs réellement lus : **192 Ko**,
+soit 57 % de moins.
+
+Deux détails de moindre portée, corrigés au passage : le ménage des sessions
+périmées lançait une ÉCRITURE à chaque affichage de page pour un résultat
+presque toujours vide (une fois par jour suffit), et les réglages de la liaison
+backend étaient relus en base à chaque rendu (ils tiennent en mémoire, et
+l'écriture invalide le cache elle-même).
+
+**Ce qui a été mesuré puis écarté** : grouper les mises à jour de la
+synchronisation en transactions (625 ms une par une contre 663 ms groupées —
+aucun gain une fois la base en WAL, Prisma envoyant de toute façon une
+instruction par ligne) ; mettre en cache le corpus de l'autocomplétion (la
+route répond déjà en 5 ms) ; mettre à jour les repères de la carte au lieu de
+les reconstruire (200 repères au plus, sous le seuil du perceptible, pour un
+vrai risque de régression).
+
+**Si le site vous paraît toujours lent, vérifiez que vous n'êtes pas en mode
+développement.** Mesuré sur les mêmes pages : `/formations` répond en 33 ms en
+production contre 176 à 222 ms en développement, et 1,2 s à la première visite
+de chaque route — Turbopack compile à la demande. `npm run dev` est fait pour
+écrire du code ; `npm run build && npm start`, ou Docker, pour s'en servir.
+
 ## Dates
 
 Toutes les dates du site sont des **dates calendaires** stockées à minuit UTC et

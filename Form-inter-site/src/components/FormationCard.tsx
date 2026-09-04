@@ -2,17 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Prisma } from "@/generated/prisma/client";
+import type { FormationCarte } from "@/lib/champs-formation";
 import { SessionsModal } from "@/components/SessionsModal";
 import { debutDuJour, formatDateCourt } from "@/lib/dates";
 
-export type FormationWithRelations = Prisma.FormationGetPayload<{
-  include: {
-    organisme: true;
-    domaine: true;
-    sessions: { include: { centre: true } };
-  };
-}>;
+// La projection Prisma vit dans un module NEUTRE (`@/lib/champs-formation`) :
+// ce fichier-ci porte `"use client"`, et une constante exportée d'un module
+// client vaut `undefined` vue d'un composant serveur. On ne réexporte ici que
+// le type, pour que les composants gardent un nom de domaine.
+export type FormationWithRelations = FormationCarte;
 
 export type SessionWithCentre = FormationWithRelations["sessions"][number];
 
